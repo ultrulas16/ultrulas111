@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Print styles for reports */
+@media print {
+  .report-page {
+    page-break-after: always;
+    overflow: hidden;
+  }
+  
+  .report-page:last-child {
+    page-break-after: avoid;
+  }
+  
+  /* Hide UI elements when printing */
+  button, input, select, .no-print {
+    display: none !important;
+  }
+}
+
+/* Report page styles */
+.report-page {
+  background-color: white;
+  position: relative;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+/* Risk matrix colors */
+.risk-very-high {
+  background-color: #dc2626;
+  color: white;
+}
+
+.risk-high {
+  background-color: #ef4444;
+  color: white;
+}
+
+.risk-medium {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.risk-low {
+  background-color: #10b981;
+  color: white;
+}
+
+.risk-very-low {
+  background-color: #d1fae5;
+  color: #065f46;
+}
