@@ -1,5 +1,5 @@
 // Gerekli kütüphaneleri import ediyoruz. Sürükle-bırak için 'react-beautiful-dnd' ekledik.
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Download, Plus, Trash2, Save, DollarSign, Calendar, User, Building, CheckCircle, AlertTriangle, Percent, Edit, Image, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import html2canvas from 'html2canvas';
