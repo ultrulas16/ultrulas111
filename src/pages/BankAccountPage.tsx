@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   Map, Settings, Download, Building, Calendar, User, MapPin, Link2, Mountain,
-  Industry, Tractor, AlertTriangle, PlusCircle, XCircle, Zap, ChevronDown,
+  Factory, // <--- Düzeltilmiş kısım
+  Tractor, AlertTriangle, PlusCircle, XCircle, Zap, ChevronDown,
   Trash2, Edit, Save, RefreshCw
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
