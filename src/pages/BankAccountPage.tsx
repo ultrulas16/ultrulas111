@@ -425,7 +425,7 @@ const LocationAnalysisDashboard = () => {
               {loading ? <LoadingSpinner /> : <Download size={16} className="mr-2" />} PDF
             </button>
             <button onClick={() => generateReport('jpeg')} disabled={loading} className="w-full flex items-center justify-center bg-green-600 text-white px-4 py-2.5 rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-all">
-              {loading ? <LoadingSpinner /> : <Download size={16} className="mr-2" />} JPEG
+              {loading ? <LoadingSpinner /> : <Download size={16} className="mr-2" />} JPEG.
             </button>
           </div>
         </div>
