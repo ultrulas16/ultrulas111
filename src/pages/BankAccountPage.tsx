@@ -1,7 +1,7 @@
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   Map, Settings, Download, Building, Calendar, User, MapPin, Link2, Mountain,
-  Factory, // <--- Düzeltilmiş kısım
-  Tractor, AlertTriangle, PlusCircle, XCircle, Zap, ChevronDown,
+  Industry, Tractor, AlertTriangle, PlusCircle, XCircle, Zap, ChevronDown,
   Trash2, Edit, Save, RefreshCw
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -35,11 +35,19 @@ interface ReportData {
 
 // --- Başlangıç Veri Şablonu ---
 const getDefaultState = (): { reportData: ReportData; analysisItems: AnalysisCategory[] } => ({
-  // ...
+  reportData: {
+    clientCompany: '',
+    factoryAddress: '',
+    assessmentDate: new Date().toISOString().split('T')[0],
+    assessorName: 'Uzman Analist',
+    mapImageUrl: '',
+    strategicSummary: 'Yapılan analizler sonucunda, tesisin konumu genel olarak değerlendirilmiş ve potansiyel riskler ile fırsatlar aşağıda detaylandırılmıştır. Özellikle dikkat edilmesi gereken hususlar...'
+  },
   analysisItems: [
-    // ...
-    { id: 'cat2', title: 'Komşu Yapılanma ve Sanayi', icon: Factory, items: []}, // <--- Düzeltilmiş kısım
-    // ...
+    { id: 'cat1', title: 'Çevresel Faktörler', icon: Mountain, items: []},
+    { id: 'cat2', title: 'Komşu Yapılanma ve Sanayi', icon: Industry, items: []},
+    { id: 'cat3', title: 'Arazi Kullanımı ve Lojistik', icon: Tractor, items: []},
+    { id: 'cat4', title: 'Doğal Afet ve Altyapı Riskleri', icon: AlertTriangle, items: []},
   ]
 });
 
