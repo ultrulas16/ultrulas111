@@ -218,113 +218,34 @@ const AdvancedQuoteGenerator = () => {
         {/* ... form içeriği ... */}
       </div>
 
-// Sağ Panel: Canlı Önizleme ve Özet
-// ...
-<div ref={quotePreviewRef} className="flex-grow border rounded-lg p-7 overflow-y-auto bg-white shadow-inner"> {/* Değişiklik: p-8 -> p-7 */}
-    {/* Önizleme içeriği buraya gelecek. */}
-    <header className="flex justify-between items-start pb-4 border-b mb-6"> {/* Değişiklik: pb-6 mb-8 -> pb-4 mb-6 */}
-        <div>
-            {/* Değişiklik: text-3xl -> text-2xl ve text-sm -> text-xs */}
-            <h1 className="text-2xl font-bold text-gray-800">FİYAT TEKLİFİ</h1>
-            <p className="text-xs text-gray-500 mt-1">Teklif No: {quote.quote_number}</p>
-        </div>
-        {quote.issuer_logo_url ?
-            <img src={quote.issuer_logo_url} alt="Logo" className="h-14 object-contain" /> // Değişiklik: h-16 -> h-14
-            : <h2 className="text-xl font-bold text-gray-700">{quote.issuer_company}</h2>
-        }
-    </header>
-
-    <section className="grid grid-cols-2 gap-6 mb-6 text-xs"> {/* Değişiklik: gap-8 mb-8 -> gap-6 mb-6 ve text-sm -> text-xs */}
-        <div>
-            <h3 className="font-semibold text-gray-500 uppercase tracking-wider mb-2">MÜŞTERİ BİLGİLERİ</h3>
-            <p className="font-bold text-sm text-gray-800">{quote.client_name || 'Müşteri Adı'}</p>
-            {quote.client_company && <p className="text-gray-600">{quote.client_company}</p>}
-            <p className="text-gray-600 mt-1">{quote.client_address || 'Müşteri Adresi'}</p>
-            <p className="text-gray-600">{quote.client_phone || 'Telefon'}</p>
-            <p className="text-gray-600">{quote.client_email || 'E-posta'}</p>
-        </div>
-        <div className="text-right">
-            <h3 className="font-semibold text-gray-500 uppercase tracking-wider mb-2">TEKLİF BİLGİLERİ</h3>
-            <p><span className="font-semibold text-gray-600">Teklif Tarihi:</span> {new Date(quote.quote_date).toLocaleDateString('tr-TR')}</p>
-            <p><span className="font-semibold text-gray-600">Geçerlilik Tarihi:</span> {new Date(quote.valid_until).toLocaleDateString('tr-TR')}</p>
-        </div>
-    </section>
-
-    {/* Değişiklik: tablo ve içerisindeki tüm metinler için text-xs sınıfı eklendi */}
-    <section className="mb-6">
-        <table className="w-full text-xs">
-            <thead className="bg-gray-50">
-                <tr>
-                    <th className="p-2 text-left font-semibold text-gray-600 border-b border-gray-200">#</th>
-                    <th className="p-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-2/5">Açıklama</th>
-                    <th className="p-2 text-right font-semibold text-gray-600 border-b border-gray-200">Miktar</th>
-                    <th className="p-2 text-right font-semibold text-gray-600 border-b border-gray-200">Birim Fiyat</th>
-                    <th className="p-2 text-right font-semibold text-gray-600 border-b border-gray-200">İndirim</th>
-                    <th className="p-2 text-right font-semibold text-gray-600 border-b border-gray-200">Toplam</th>
-                </tr>
-            </thead>
-            <tbody>
-                {quote.items.map((item, index) => {
-                    const itemTotal = item.quantity * item.unitPrice;
-                    const discountAmount = item.discountType === 'percent' ? itemTotal * (item.discount / 100) : item.discount;
-                    return (
-                        <tr key={item.id} className="border-b border-gray-100">
-                            <td className="p-2">{index + 1}</td>
-                            <td className="p-2">{item.description}</td>
-                            <td className="p-2 text-right">{item.quantity}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.unitPrice)}</td>
-                            <td className="p-2 text-right text-red-600">
-                                {discountAmount > 0 && `-${formatCurrency(discountAmount)}`}
-                            </td>
-                            <td className="p-2 text-right font-medium">{formatCurrency(itemTotal - discountAmount)}</td>
-                        </tr>
-                    );
-                })}
-            </tbody>
-        </table>
-    </section>
-
-    <div className="flex justify-end">
-        <div className="w-1/2 max-w-xs text-xs space-y-1"> {/* Değişiklik: text-sm -> text-xs */}
-            <div className="flex justify-between">
-                <span className="text-gray-600">Ara Toplam:</span>
-                <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-                <span className="text-gray-600">Genel İndirim:</span>
-                <span className="font-medium text-red-600">-{formatCurrency(totals.totalDiscount - (totals.subtotal - totals.discountedSubtotal))}</span>
-            </div>
-            <div className="flex justify-between border-t pt-1 mt-1">
-                <span className="text-gray-600">İndirimli Ara Toplam:</span>
-                <span className="font-medium">{formatCurrency(totals.discountedSubtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-                <span className="text-gray-600">KDV Toplamı:</span>
-                <span className="font-medium">{formatCurrency(totals.taxAmount)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-base text-gray-800 border-t-2 border-gray-300 pt-2 mt-2"> {/* Değişiklik: text-xl -> text-base */}
-                <span>GENEL TOPLAM:</span>
-                <span>{formatCurrency(totals.totalAmount)}</span>
+      {/* Sağ Panel: Canlı Önizleme ve Özet */}
+      <div className="w-1/2 bg-white p-6 border-l border-gray-200 flex flex-col">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Canlı Önizleme</h2>
+        <div ref={quotePreviewRef} className="flex-grow border rounded-lg p-8 overflow-y-auto bg-white shadow-inner">
+            {/* Önizleme içeriği buraya gelecek. Örneğin: */}
+            <header className="flex justify-between items-start pb-6 border-b">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">FİYAT TEKLİFİ</h1>
+                    <p className="text-sm text-gray-500">Teklif No: {quote.quote_number}</p>
+                </div>
+                {quote.issuer_logo_url && <img src={quote.issuer_logo_url} alt="Logo" className="h-16 object-contain" />}
+            </header>
+            {/* ... Diğer önizleme detayları ... */}
+            <div className="mt-8 text-right font-semibold">
+                <p>Ara Toplam: {formatCurrency(totals.subtotal)}</p>
+                <p className="text-red-600">İndirim: -{formatCurrency(totals.totalDiscount)}</p>
+                <p>Vergi ({quote.items[0]?.taxRate}%): {formatCurrency(totals.taxAmount)}</p>
+                <p className="text-2xl font-bold border-t mt-2 pt-2">Genel Toplam: {formatCurrency(totals.totalAmount)}</p>
             </div>
         </div>
+        <div className="pt-6 flex justify-end space-x-3">
+            <button onClick={() => generateDocument('jpeg')} disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center"><Image className="w-4 h-4 mr-2" />{loading ? 'İşleniyor...' : 'JPEG'}</button>
+            <button onClick={() => generateDocument('pdf')} disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"><Download className="w-4 h-4 mr-2" />{loading ? 'İşleniyor...' : 'PDF'}</button>
+            <button onClick={handleSaveQuote} disabled={isSaving} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 flex items-center"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
+        </div>
+      </div>
     </div>
-
-    {(quote.notes || quote.terms) && (
-    <footer className="mt-8 pt-4 border-t text-xs text-gray-600">
-        {quote.notes && (
-            <div className="mb-4">
-                <h4 className="font-semibold text-gray-700 mb-1">Notlar</h4>
-                <p className="whitespace-pre-wrap">{quote.notes}</p>
-            </div>
-        )}
-        {quote.terms && (
-            <div>
-                <h4 className="font-semibold text-gray-700 mb-1">Şartlar</h4>
-                <p className="whitespace-pre-wrap">{quote.terms}</p>
-            </div>
-        )}
-    </footer>
-    )}
-</div>
+  );
+};
 
 export default AdvancedQuoteGenerator;
