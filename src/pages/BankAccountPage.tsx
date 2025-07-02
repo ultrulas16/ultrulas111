@@ -357,4 +357,4 @@ const LocationAnalysisDashboard = () => {
   );
 };
 
-export default LocationAnalysisDashboard;
+export default LocationAnalysisDashboard
