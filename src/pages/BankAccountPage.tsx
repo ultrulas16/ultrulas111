@@ -35,19 +35,11 @@ interface ReportData {
 
 // --- Başlangıç Veri Şablonu ---
 const getDefaultState = (): { reportData: ReportData; analysisItems: AnalysisCategory[] } => ({
-  reportData: {
-    clientCompany: '',
-    factoryAddress: '',
-    assessmentDate: new Date().toISOString().split('T')[0],
-    assessorName: 'Uzman Analist',
-    mapImageUrl: '',
-    strategicSummary: 'Yapılan analizler sonucunda, tesisin konumu genel olarak değerlendirilmiş ve potansiyel riskler ile fırsatlar aşağıda detaylandırılmıştır. Özellikle dikkat edilmesi gereken hususlar...'
-  },
+  // ...
   analysisItems: [
-    { id: 'cat1', title: 'Çevresel Faktörler', icon: Mountain, items: []},
-    { id: 'cat2', title: 'Komşu Yapılanma ve Sanayi', icon: Industry, items: []},
-    { id: 'cat3', title: 'Arazi Kullanımı ve Lojistik', icon: Tractor, items: []},
-    { id: 'cat4', title: 'Doğal Afet ve Altyapı Riskleri', icon: AlertTriangle, items: []},
+    // ...
+    { id: 'cat2', title: 'Komşu Yapılanma ve Sanayi', icon: Factory, items: []}, // <--- Düzeltilmiş kısım
+    // ...
   ]
 });
 
