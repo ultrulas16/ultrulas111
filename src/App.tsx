@@ -36,6 +36,7 @@ import QuoteGeneratorPage from './pages/QuoteGeneratorPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import RiskAreaIdentificationPage from './pages/RiskAreaIdentificationPage';
 import ThirdEyeReportPage from './pages/ThirdEyeReportPage';
+import PestRiskAnalysisPage from './pages/PestRiskAnalysisPage';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -293,6 +294,11 @@ function App() {
                     <Route path="/moduller/3-goz-raporu" element={
                       <ProtectedModulePage modulePath="/moduller/3-goz-raporu">
                         <ThirdEyeReportPage />
+                      </ProtectedModulePage>
+                    } />
+                    <Route path="/moduller/zararli-risk-analizi" element={
+                      <ProtectedModulePage modulePath="/moduller/zararli-risk-analizi">
+                        <PestRiskAnalysisPage />
                       </ProtectedModulePage>
                     } />
 

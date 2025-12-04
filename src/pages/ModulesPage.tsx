@@ -299,6 +299,29 @@ const ModulesPage = () => {
       ],
       link: '/moduller/3-goz-raporu',
       path: '/moduller/3-goz-raporu'
+    },
+    {
+      id: 'pest-risk-analysis',
+      title: 'Zararlı Risk Analizi ve Ziyaret Planı',
+      description: 'Zararlı türlerine göre risk analizi yapın ve otomatik ziyaret sıklığı belirleyin. Çevresel şartlar, bina kontrolleri ve zararlı büyüme hızına göre profesyonel analiz.',
+      icon: Bug,
+      color: 'bg-green-600',
+      features: [
+        'Zararlı bazlı risk analizi',
+        'Otomatik risk hesaplama',
+        'Ziyaret sıklığı önerisi',
+        'Risk skor matrisi',
+        'PDF ve JPEG formatında indirme',
+        'Profesyonel rapor'
+      ],
+      process: [
+        'Zararlı türü belirleme',
+        'Risk faktörleri değerlendirme',
+        'Otomatik hesaplama',
+        'Ziyaret planı oluşturma'
+      ],
+      link: '/moduller/zararli-risk-analizi',
+      path: '/moduller/zararli-risk-analizi'
     }
   ];
 
