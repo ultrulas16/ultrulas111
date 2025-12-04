@@ -35,6 +35,7 @@ import TrainingCertificatePage from './pages/TrainingCertificatePage';
 import QuoteGeneratorPage from './pages/QuoteGeneratorPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import RiskAreaIdentificationPage from './pages/RiskAreaIdentificationPage';
+import ThirdEyeReportPage from './pages/ThirdEyeReportPage';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -289,7 +290,12 @@ function App() {
                         <RiskAreaIdentificationPage />
                       </ProtectedModulePage>
                     } />
-                    
+                    <Route path="/moduller/3-goz-raporu" element={
+                      <ProtectedModulePage modulePath="/moduller/3-goz-raporu">
+                        <ThirdEyeReportPage />
+                      </ProtectedModulePage>
+                    } />
+
                     {/* Corporate Service Routes */}
                     <Route path="/hizmetler/zarli-mucadelesi-ipm" element={<IPMPage />} />
                     <Route path="/hizmetler/dezenfeksiyon" element={<DisinfectionPage />} />

@@ -276,6 +276,29 @@ const ModulesPage = () => {
       ],
       link: '/moduller/fiyat-teklifi',
       path: '/moduller/fiyat-teklifi'
+    },
+    {
+      id: 'third-eye-report',
+      title: '3. Göz Denetim Raporu',
+      description: 'Operatör ziyareti sonrası bağımsız kalite kontrol denetimi yapın. Süpervizör veya yönetici kontrolü için profesyonel denetim raporları.',
+      icon: Eye,
+      color: 'bg-purple-600',
+      features: [
+        'Bağımsız kalite kontrolü',
+        'Uygunluk değerlendirmesi',
+        'Fotoğraf ekleme',
+        'Düzeltici eylem planları',
+        'PDF ve JPEG formatında indirme',
+        'İstatistiksel analiz'
+      ],
+      process: [
+        'Operatör çalışması kontrolü',
+        'Bulgu kaydetme',
+        'Düzeltici eylem belirleme',
+        'Rapor hazırlama'
+      ],
+      link: '/moduller/3-goz-raporu',
+      path: '/moduller/3-goz-raporu'
     }
   ];
 

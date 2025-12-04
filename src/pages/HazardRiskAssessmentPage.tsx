@@ -54,6 +54,7 @@ interface ReportInfo {
   reviewDate: string;
   companyLogo: string | null;
   footerText: string;
+  visitFrequency: 'weekly-1' | 'monthly-2' | 'monthly-4' | '';
 }
 
 const HazardRiskAssessmentPage = () => {
@@ -125,7 +126,8 @@ const HazardRiskAssessmentPage = () => {
     department: '',
     reviewDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     companyLogo: null,
-    footerText: 'PestMentor © 2025 | Sistem İlaçlama San. ve Tic. Ltd. Şti. | www.pestmentor.com.tr'
+    footerText: 'PestMentor © 2025 | Sistem İlaçlama San. ve Tic. Ltd. Şti. | www.pestmentor.com.tr',
+    visitFrequency: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -294,13 +296,48 @@ const HazardRiskAssessmentPage = () => {
   // Calculate average risk scores
   const calculateAverageRiskScores = () => {
     if (hazards.length === 0) return { initial: 0, final: 0 };
-    
+
     const initialSum = hazards.reduce((sum, hazard) => sum + hazard.riskScore, 0);
     const finalSum = hazards.reduce((sum, hazard) => sum + hazard.newRiskScore, 0);
-    
+
     return {
       initial: Math.round((initialSum / hazards.length) * 10) / 10,
       final: Math.round((finalSum / hazards.length) * 10) / 10
+    };
+  };
+
+  // Calculate visit plan
+  const calculateVisitPlan = () => {
+    if (!reportInfo.visitFrequency) {
+      return { summer: 0, winter: 0, label: '' };
+    }
+
+    let monthlyVisits = 0;
+    let label = '';
+
+    switch (reportInfo.visitFrequency) {
+      case 'weekly-1':
+        monthlyVisits = 4;
+        label = 'Haftada 1 Ziyaret';
+        break;
+      case 'monthly-2':
+        monthlyVisits = 2;
+        label = 'Ayda 2 Ziyaret';
+        break;
+      case 'monthly-4':
+        monthlyVisits = 4;
+        label = 'Ayda 4 Ziyaret';
+        break;
+    }
+
+    const summerMonths = 6;
+    const winterMonths = 6;
+
+    return {
+      summer: monthlyVisits * summerMonths,
+      winter: monthlyVisits * winterMonths,
+      label,
+      monthly: monthlyVisits
     };
   };
 
@@ -492,16 +529,19 @@ const HazardRiskAssessmentPage = () => {
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
-      
+
       // Scroll to the page
       if (pageRefs.current[pageNumber - 1]) {
-        pageRefs.current[pageNumber - 1]?.scrollIntoView({ behavior: 'smooth' });
+        pageRefs.current[pageNumber - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
   };
 
   // Calculate average risk scores
   const averageRiskScores = calculateAverageRiskScores();
+
+  // Calculate visit plan
+  const visitPlan = calculateVisitPlan();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -686,6 +726,23 @@ const HazardRiskAssessmentPage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Alt bilgi metni"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ziyaret Sıklığı
+                  </label>
+                  <select
+                    name="visitFrequency"
+                    value={reportInfo.visitFrequency}
+                    onChange={handleReportInfoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="">Seçiniz</option>
+                    <option value="weekly-1">Haftada 1 Ziyaret</option>
+                    <option value="monthly-2">Ayda 2 Ziyaret</option>
+                    <option value="monthly-4">Ayda 4 Ziyaret</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1071,6 +1128,36 @@ const HazardRiskAssessmentPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Visit Plan */}
+                {reportInfo.visitFrequency && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Ziyaret Planı</h2>
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <div className="grid grid-cols-3 gap-6">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-2">Ziyaret Sıklığı</p>
+                          <p className="text-2xl font-bold text-blue-600">{visitPlan.label}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-2">Yaz Dönemi Ziyaret</p>
+                          <p className="text-2xl font-bold text-amber-600">{visitPlan.summer} Ziyaret</p>
+                          <p className="text-xs text-gray-500 mt-1">(Nisan - Eylül)</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-2">Kış Dönemi Ziyaret</p>
+                          <p className="text-2xl font-bold text-blue-600">{visitPlan.winter} Ziyaret</p>
+                          <p className="text-xs text-gray-500 mt-1">(Ekim - Mart)</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+                        <p className="text-sm text-gray-700">
+                          <span className="font-semibold">Toplam Yıllık Ziyaret:</span> {visitPlan.summer + visitPlan.winter} Ziyaret
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Risk Matrix */}
                 <div className="mb-8">
@@ -1799,27 +1886,29 @@ const HazardRiskAssessmentPage = () => {
       )}
 
       {/* Help Section */}
-      <div className="mt-12 bg-blue-50 rounded-lg p-6">
-        <div className="flex items-start space-x-4">
-          <Info className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
-          <div>
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">Tehlike Belirleme ve Risk Değerlendirme Hakkında</h3>
-            <p className="text-blue-700 mb-4">
-              Bu modül, zararlı mücadelesi ile ilgili tehlikeleri belirlemek, risk seviyelerini değerlendirmek ve kontrol önlemlerini planlamak için kullanılır.
-            </p>
-            <h4 className="font-semibold text-blue-800 mb-1">Nasıl Kullanılır?</h4>
-            <ul className="space-y-1 text-blue-700">
-              <li>1. Rapor bilgilerini doldurun (şirket adı, değerlendirme tarihi, vb.)</li>
-              <li>2. "Yeni Tehlike Ekle" butonuna tıklayarak tehlikeleri ekleyin</li>
-              <li>3. Her tehlike için ilk risk değerlendirmesini yapın (olasılık ve şiddet)</li>
-              <li>4. Önerilen kontrol önlemlerini, sorumlu kişileri ve hedef tarihleri belirleyin</li>
-              <li>5. Kontrol önlemleri sonrası son risk değerlendirmesini yapın</li>
-              <li>6. "Önizleme" sekmesine geçerek raporu kontrol edin</li>
-              <li>7. "PDF İndir" veya "JPEG İndir" butonlarıyla raporu dışa aktarın</li>
-            </ul>
+      {activeTab === 'report' && (
+        <div className="mt-12 bg-blue-50 rounded-lg p-6">
+          <div className="flex items-start space-x-4">
+            <Info className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+            <div>
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">Tehlike Belirleme ve Risk Değerlendirme Hakkında</h3>
+              <p className="text-blue-700 mb-4">
+                Bu modül, zararlı mücadelesi ile ilgili tehlikeleri belirlemek, risk seviyelerini değerlendirmek ve kontrol önlemlerini planlamak için kullanılır.
+              </p>
+              <h4 className="font-semibold text-blue-800 mb-1">Nasıl Kullanılır?</h4>
+              <ul className="space-y-1 text-blue-700">
+                <li>1. Rapor bilgilerini doldurun (şirket adı, değerlendirme tarihi, vb.)</li>
+                <li>2. "Yeni Tehlike Ekle" butonuna tıklayarak tehlikeleri ekleyin</li>
+                <li>3. Her tehlike için ilk risk değerlendirmesini yapın (olasılık ve şiddet)</li>
+                <li>4. Önerilen kontrol önlemlerini, sorumlu kişileri ve hedef tarihleri belirleyin</li>
+                <li>5. Kontrol önlemleri sonrası son risk değerlendirmesini yapın</li>
+                <li>6. "Önizleme" sekmesine geçerek raporu kontrol edin</li>
+                <li>7. "PDF İndir" veya "JPEG İndir" butonlarıyla raporu dışa aktarın</li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
