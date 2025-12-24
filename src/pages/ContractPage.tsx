@@ -1,19 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  FileText, 
-  Download, 
-  Trash2, 
-  Plus, 
-  Edit, 
-  Save,
-  PenTool,
-  RotateCcw,
-  Check,
-  X,
-  Upload,
-  Image as ImageIcon,
-  Printer,
-  RefreshCw
+  FileText, Download, Trash2, Plus, Edit, Save, 
+  PenTool, RotateCcw, Check, X, Upload, Image as ImageIcon, 
+  Printer, RefreshCw, AlertCircle 
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -48,65 +37,19 @@ interface Signature {
 
 // --- VARSAYILAN VERİLER ---
 const DEFAULT_CLAUSES: ContractClause[] = [
-    {
-      id: '1',
-      number: '1',
-      title: 'SÖZLEŞMENİN KONUSU',
-      content: '{clientName} işletmesinde insan sağlığı, hammadde ve ürün kalitesini insan sağlığını bozacak olumsuz yönde etkileyecek zararlı haşerenin kontrolüne ilişkin onaylanmış alanlarda {providerName} tarafından yapılacak zararlı haşere ile mücadele hizmetlerine ilişkin teknik, idari, mali ve hukuki şartlar ve sorumlulukların kabulü, taahhüdü ve onayları iş bu sözleşmenin konusunu oluşturmaktadır.'
-    },
-    {
-      id: '2',
-      number: '2',
-      title: 'TARAFLAR',
-      content: 'HİZMET ALAN FİRMA ve HİZMET VEREN FİRMA bilgileri yukarıda belirtilmiştir.'
-    },
-    {
-      id: '3',
-      number: '3',
-      title: 'YAPILACAK İŞİN TANIMI',
-      content: 'Yukarıda adresi belirtilen İŞVEREN işletmesinde aşağıda belirtilen zararlılara karşı yapılacak mücadelenin denetimi, engellenmesi ve yok edilmesi hizmetleridir.'
-    },
-    {
-      id: '4',
-      number: '4',
-      title: 'YETKİ VE SORUMLULUKLAR',
-      content: '4.1 {providerShortName} yetkilisi, İŞVEREN elemanının nezaretinde, entegre zararlı mücadelesi/IPM işlerini icra edecek olup, gizlilik kurallarına uyulması, özel mülkün korunması ve mahremiyet ilkelerine ilişkin mevzuata tam olarak riayet etmek zorundadır.\n4.2 {providerShortName} T.C. Tarım Bakanlığı ve Sağlık Bakanlığı\'nın müsaade ve tavsiye ettiği her türlü ilaç, ekipman monitör (yem istasyonu) kullanımına ilişkin yem, cinsel çekici hormon, insektisit ve rodentisit v.b. diğer haşere mücadele – kontrol ve önlenmesine ilişkin doğal veya kimyasal tüm materyali kullanabilme, gereğinde değiştirebilme, dozaj ve sayısını duruma göre değerlendirerek, artırıp, azaltabilme, insektisit v.b. sıvı doğal veya kimyasal ilaçların uygun ilaçlama ekipmanlarında kullanımı, ilaçlama zaman ve sıklığını gerektiğinde ilaçlama süresince ve sonrasına uygulama alanına yetkili olmayan diğer kişilerin uzak tutulmasında, karar, uygulama ve uygulattırma yetkisine sahip olacaktır.\n4.3 Uygulama sonrası gözlem, takip ve periyodik kontrollerin yapılması, raporlanması, gerekiyorsa İŞVEREN onayı ile tedarikçi firmaların denetlenmesi {providerShortName} tarafından yapılacaktır.\n4.4 Periyodik kontroller veya uygulama sonrası bina ve tesis haşereden arınmış olarak teslim edilmiş ise, bir sonraki uygulama veya kontrol tarihine kadar görülebilecek haşerenin ve kalıntının bildirilmesi İŞVEREN sorumluluğundadır.\n4.5 İşbu sözleşme devam ettiği sürece, sözleşme kapsamında olan zararlı kontrol ve mücadelesine yönelik {providerShortName} bilgisi dışında, herhangi bir uygulama ve fiziksel tuzak veya monitör kullanılmasına müsaade etmeyecektir.\n4.6 {providerShortName} kırılan veya kullanılmaz hale getirilen monitörlerin (yem istasyonu) bedelini İŞVEREN\'e fatura eder.\n4.7 Uygulama veya kontrol öncesinde, çalışma yapılacak bölgeler İŞVEREN tarafından hazır hale getirilecektir.\n4.8 {providerShortName} tarafından raporlarda belirtilen izolasyon ve hijyen iyileştirmeleri ve/veya yapılan öneriler doğrultusunda alınması gereken cihazların veya yapılması gereken fiziki önlemlerin bedeli İŞVEREN tarafından karşılanacak veya tedarik edilecek'
-    },
-    {
-      id: '5',
-      number: '5',
-      title: 'HİZMETİN SÜRESİ, FESİH VE DİĞER ŞARTLAR',
-      content: '5.1 İşbu sözleşme {startDate} – {endDate} tarihleri arasında geçerli olup {endDate} tarihinden bir ay önce sözleşmenin yenilenmeyeceği yazılı olarak taraflarca bildirilmediği takdirde kendiliğinden yenilenmiş olur.\n5.2 Bu hüküm takip eden yıllar için de geçerli olacaktır. Bu aşamada TÜİK (Türkiye İstatistik Kurumu) tarafından açıklanmış yıllık enflasyon oranı dikkate alınarak taraflar karşılıklı görüşerek artırım oranını belirlerler.\n5.3 İŞVEREN, işbu sözleşmeyi ilk altı ay boyunca feshedemez, işbu sözleşme, taraf olarak imza vadeden kimselerin katılımı olmadan feshedilemez, devredilemez.\n5.4 Bu sözleşme fesihle ya da süresinin hitamıyla sona ermiş olsa dahi, {providerShortName} sözleşmede öngörülen hizmeti İŞVEREN\'in öngöreceği süre kadar işbu sözleşme hükümleri çerçevesinde yürütmek zorundadır. Söz konusu süre her halükarda 1 (bir) ayı geçemez.'
-    },
-    {
-      id: '6',
-      number: '6',
-      title: 'İHTİLAFLARIN HALLİ',
-      content: 'İhtilafların hallinde Bursa Mahkemeleri ve İcra Daireleri yetkilidir.'
-    },
-    {
-      id: '7',
-      number: '7',
-      title: 'ZORUNLU NEDENLER',
-      content: '{providerShortName} savaş, sel, yangın, ağır mevsim şartları, deprem gibi doğal afetler, ayaklanma, terör, toplu halk hareketleri, grev lokavt ve İŞVEREN alanındaki çalışma şartlarının sağlanmamış olması gibi mücbir sebeplerin dışında bir başka sebeple işbu sözleşmede belirtilen hizmetleri yapmaktan kaçınamaz, haklı sebepler ileri süremez.'
-    },
-    {
-      id: '8',
-      number: '8',
-      title: 'FİYAT VE ÖDEME',
-      content: '8.1 Fiyat\nİşbu sözleşmenin, 2. maddesinde belirtilen adresindeki İŞVEREN alanındaki, 3 ve 4 ncü maddelerde belirtilen işlerin tamamı için sözleşmenin geçerli olduğu sürece {providerShortName}, aylık aşağıda belirtilen tutarda fatura düzenleyecektir.\n\n{price}.-TL/AY+KDV\t\t( {priceInWords} TL/AY+KDV )\n\n8.2 Ödeme\nFatura tarihini takip eden 15 gün içerisinde ödeme yapılacaktır. Zamanında yapılmayan ödemeler için aylık Merkez bankası reeskont faizi uygulanacaktır.'
-    },
-    {
-      id: '9',
-      number: '9',
-      title: 'DİĞER HÜKÜMLER',
-      content: 'İşbu sözleşme iki (2) sayfa ve dokuz (9) maddeden ibaret olup, 1 nüsha olarak düzenlenmiştir. Tarafların tebligat adresleri işbu sözleşmenin ikinci maddesinde yazıldığı gibidir. Adres değişiklikleri karşı tarafa yazılı olarak bildirilmediği taktirde anılan adreslere yapılan tebligatlar geçerli sayılacaktır.'
-    }
+    { id: '1', number: '1', title: 'SÖZLEŞMENİN KONUSU', content: '{clientName} işletmesinde insan sağlığı, hammadde ve ürün kalitesini insan sağlığını bozacak olumsuz yönde etkileyecek zararlı haşerenin kontrolüne ilişkin onaylanmış alanlarda {providerName} tarafından yapılacak zararlı haşere ile mücadele hizmetlerine ilişkin teknik, idari, mali ve hukuki şartlar ve sorumlulukların kabulü, taahhüdü ve onayları iş bu sözleşmenin konusunu oluşturmaktadır.' },
+    { id: '2', number: '2', title: 'TARAFLAR', content: 'HİZMET ALAN FİRMA ve HİZMET VEREN FİRMA bilgileri yukarıda belirtilmiştir.' },
+    { id: '3', number: '3', title: 'YAPILACAK İŞİN TANIMI', content: 'Yukarıda adresi belirtilen İŞVEREN işletmesinde aşağıda belirtilen zararlılara karşı yapılacak mücadelenin denetimi, engellenmesi ve yok edilmesi hizmetleridir.' },
+    { id: '4', number: '4', title: 'YETKİ VE SORUMLULUKLAR', content: '4.1 {providerShortName} yetkilisi, İŞVEREN elemanının nezaretinde, entegre zararlı mücadelesi/IPM işlerini icra edecek olup, gizlilik kurallarına uyulması, özel mülkün korunması ve mahremiyet ilkelerine ilişkin mevzuata tam olarak riayet etmek zorundadır.\n4.2 {providerShortName} T.C. Tarım Bakanlığı ve Sağlık Bakanlığı\'nın müsaade ve tavsiye ettiği her türlü ilaç, ekipman kullanımı yetkisine sahiptir.\n4.3 Uygulama sonrası gözlem, takip ve periyodik kontrollerin yapılması {providerShortName} tarafından yapılacaktır.\n4.4 Periyodik kontroller veya uygulama sonrası bina ve tesis haşereden arınmış olarak teslim edilmiş ise, bildirim İŞVEREN sorumluluğundadır.\n4.5 Kırılan veya kullanılmaz hale getirilen monitörlerin bedeli İŞVEREN\'e fatura edilir.' },
+    { id: '5', number: '5', title: 'HİZMETİN SÜRESİ VE ŞARTLAR', content: '5.1 İşbu sözleşme {startDate} – {endDate} tarihleri arasında geçerlidir.\n5.2 Takip eden yıllarda TÜİK enflasyon oranı dikkate alınarak artış yapılır.\n5.3 İŞVEREN, işbu sözleşmeyi ilk altı ay boyunca feshedemez.' },
+    { id: '6', number: '6', title: 'İHTİLAFLARIN HALLİ', content: 'İhtilafların hallinde Bursa Mahkemeleri ve İcra Daireleri yetkilidir.' },
+    { id: '7', number: '7', title: 'ZORUNLU NEDENLER', content: 'Savaş, sel, yangın, ağır mevsim şartları, deprem gibi doğal afetler mücbir sebep sayılır.' },
+    { id: '8', number: '8', title: 'FİYAT VE ÖDEME', content: '8.1 Fiyat: {price}.-TL/AY+KDV ( {priceInWords} TL/AY+KDV )\n8.2 Ödeme: Fatura tarihini takip eden 15 gün içerisinde yapılacaktır.' },
+    { id: '9', number: '9', title: 'DİĞER HÜKÜMLER', content: 'İşbu sözleşme iki (2) sayfa ve dokuz (9) maddeden ibaret olup, 1 nüsha olarak düzenlenmiştir.' }
 ];
 
 // --- ANA COMPONENT ---
 const ContractPage = () => {
-  // --- STATE ---
   const [loading, setLoading] = useState(false);
   const [autoSaved, setAutoSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
@@ -117,13 +60,10 @@ const ContractPage = () => {
     clientAddress: '',
     clientPhone: '',
     clientEmail: '',
-    clientContactPerson: '',
-    serviceDescription: 'Zararlı haşere ile mücadele hizmetleri',
     startDate: '',
     endDate: '',
     price: '',
     priceInWords: '',
-    paymentTerms: 'Fatura tarihini takip eden 15 gün içerisinde',
     contractDate: new Date().toISOString().split('T')[0],
     logo: null as string | null
   });
@@ -143,35 +83,23 @@ const ContractPage = () => {
   });
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: '1',
-      bank: 'GARANTİ BANKASI',
-      branch: 'GAZCILAR ŞUBESİ',
-      accountNo: '6297367',
-      iban: 'TR82 0006 2000 0370 0006 2973 67'
-    }
+    { id: '1', bank: 'GARANTİ BANKASI', branch: 'GAZCILAR', accountNo: '6297367', iban: 'TR82 0006 2000 0370 0006 2973 67' }
   ]);
 
   const [pestServices, setPestServices] = useState<PestService[]>([
-    {
-      id: '1',
-      pests: 'Fare-Sıçanlar (Kemirgenler)',
-      frequency: 'Ayda 1 ziyaret',
-      area: 'İşletme Geneli'
-    }
+    { id: '1', pests: 'Kemirgenler', frequency: 'Ayda 1', area: 'Tüm Tesis' },
+    { id: '2', pests: 'Yürüyen Haşereler', frequency: 'Ayda 1', area: 'Üretim Alanı' }
   ]);
 
   const [contractClauses, setContractClauses] = useState<ContractClause[]>(DEFAULT_CLAUSES);
 
-  // Refs
   const contractRef = useRef<HTMLDivElement>(null);
   const page1Ref = useRef<HTMLDivElement>(null);
   const page2Ref = useRef<HTMLDivElement>(null);
 
   // --- INIT & AUTOSAVE ---
   useEffect(() => {
-    // Load from local storage
-    const saved = localStorage.getItem('contractDraft');
+    const saved = localStorage.getItem('contractDraft_V2');
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
@@ -183,22 +111,19 @@ const ContractPage = () => {
             if(parsed.signatures) setSignatures(parsed.signatures);
         } catch(e) { console.error("Kayıt yüklenemedi"); }
     } else {
-        // Set default contract number
         const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
         setFormData(prev => ({
             ...prev,
-            contractNumber: `${year}-${month}${Math.floor(Math.random() * 900 + 100)}`,
-            startDate: `${year}-01-01`,
-            endDate: `${year}-12-31`
+            contractNumber: `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}${Math.floor(Math.random()*900+100)}`,
+            startDate: `${today.getFullYear()}-01-01`,
+            endDate: `${today.getFullYear()}-12-31`
         }));
     }
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-        localStorage.setItem('contractDraft', JSON.stringify({
+        localStorage.setItem('contractDraft_V2', JSON.stringify({
             formData, serviceProvider, bankAccounts, pestServices, contractClauses, signatures
         }));
         setAutoSaved(true);
@@ -212,11 +137,9 @@ const ContractPage = () => {
     const ones = ['', 'BİR', 'İKİ', 'ÜÇ', 'DÖRT', 'BEŞ', 'ALTI', 'YEDİ', 'SEKİZ', 'DOKUZ'];
     const tens = ['', 'ON', 'YİRMİ', 'OTUZ', 'KIRK', 'ELLİ', 'ALTMIŞ', 'YETMİŞ', 'SEKSEN', 'DOKSAN'];
     const thousands = ['', 'BİN', 'MİLYON', 'MİLYAR'];
-    
     if (num === 0) return 'SIFIR';
     let words = '';
     let i = 0;
-    
     while (num > 0) {
       const chunk = num % 1000;
       if (chunk !== 0) {
@@ -284,13 +207,29 @@ const ContractPage = () => {
     }
   };
 
+  const updatePestService = (id: string, field: keyof PestService, value: string) => {
+      setPestServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const addPestService = () => {
+      setPestServices(prev => [...prev, { id: Date.now().toString(), pests: '', frequency: '', area: '' }]);
+  };
+
+  const removePestService = (id: string) => {
+      if(pestServices.length > 1) {
+          setPestServices(prev => prev.filter(s => s.id !== id));
+      } else {
+          alert("En az bir hizmet satırı olmalıdır.");
+      }
+  };
+
   const exportToPdf = async () => {
     if (!contractRef.current) return;
     setLoading(true);
     
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pages = [page1Ref.current, page2Ref.current]; // Explicit pages
+      const pages = [page1Ref.current, page2Ref.current]; 
       
       for (let i = 0; i < pages.length; i++) {
           if (!pages[i]) continue;
@@ -298,13 +237,13 @@ const ContractPage = () => {
           
           const canvas = await html2canvas(pages[i]!, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
           const imgData = canvas.toDataURL('image/jpeg', 0.95);
-          pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297); // A4 dimensions
+          pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297); 
       }
 
-      pdf.save(`Hizmet-Sozlesmesi-${formData.contractNumber}.pdf`);
+      pdf.save(`Sozlesme-${formData.contractNumber}.pdf`);
     } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      alert('PDF oluşturulurken bir hata oluştu.');
+      console.error(error);
+      alert('Hata oluştu.');
     } finally {
       setLoading(false);
     }
@@ -319,13 +258,11 @@ const ContractPage = () => {
             <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <FileText className="text-blue-600"/> Sözleşme Oluşturucu
             </h1>
-            <p className="text-xs text-gray-500 hidden md:block">Kurumsal hizmet sözleşmelerinizi hızlıca hazırlayın ve imzalayın.</p>
         </div>
         
         <div className="flex items-center gap-3">
-             {autoSaved && <span className="text-xs text-green-600 font-medium animate-pulse flex items-center"><Save size={14} className="mr-1"/> Taslak Kaydedildi</span>}
+             {autoSaved && <span className="text-xs text-green-600 font-medium animate-pulse flex items-center"><Save size={14} className="mr-1"/> Kaydedildi</span>}
              
-             {/* Mobile Tabs Switcher */}
              <div className="flex bg-gray-100 p-1 rounded-lg lg:hidden">
                 <button onClick={() => setActiveTab('edit')} className={`px-3 py-1 text-sm rounded-md transition-all ${activeTab === 'edit' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Düzenle</button>
                 <button onClick={() => setActiveTab('preview')} className={`px-3 py-1 text-sm rounded-md transition-all ${activeTab === 'preview' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Önizle</button>
@@ -349,7 +286,7 @@ const ContractPage = () => {
            
            {/* Genel Bilgiler */}
            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-             <h2 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><PenTool size={18}/> Sözleşme Detayları</h2>
+             <h2 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><PenTool size={18}/> Temel Bilgiler</h2>
              
              {/* Logo */}
              <div className="mb-4 flex items-center gap-3 p-3 bg-gray-50 rounded border border-dashed">
@@ -363,10 +300,9 @@ const ContractPage = () => {
                 )}
                 <div className="flex-1">
                     <label className="text-xs text-blue-600 font-bold cursor-pointer hover:underline block">
-                        Firma Logosu Yükle
+                        Logo Yükle
                         <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload}/>
                     </label>
-                    <p className="text-[10px] text-gray-400">Önerilen: PNG veya JPG (Max 2MB)</p>
                 </div>
              </div>
 
@@ -383,6 +319,45 @@ const ContractPage = () => {
                     <input placeholder="E-Posta" value={formData.clientEmail} onChange={e => setFormData({...formData, clientEmail: e.target.value})} className="border rounded p-2 text-sm w-full"/>
                  </div>
              </div>
+           </div>
+
+           {/* Hizmet Kapsamı (Zararlılar) */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="flex justify-between items-center mb-3">
+                    <h2 className="font-bold text-gray-700 flex items-center gap-2"><Check size={18}/> Hizmet Kapsamı</h2>
+                    <button onClick={addPestService} className="text-blue-600 hover:bg-blue-50 p-1 rounded text-xs font-bold flex items-center gap-1"><Plus size={14}/> Ekle</button>
+                </div>
+                
+                <div className="space-y-2">
+                    {pestServices.map((service, index) => (
+                        <div key={service.id} className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg group">
+                            <div className="flex justify-between mb-2">
+                                <span className="text-xs font-bold text-blue-800">#{index+1} Hizmet</span>
+                                <button onClick={() => removePestService(service.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input 
+                                    placeholder="Zararlı (Örn: Kemirgen)" 
+                                    className="col-span-3 border rounded p-1.5 text-xs"
+                                    value={service.pests}
+                                    onChange={(e) => updatePestService(service.id, 'pests', e.target.value)}
+                                />
+                                <input 
+                                    placeholder="Sıklık (Örn: Ayda 1)" 
+                                    className="col-span-1 border rounded p-1.5 text-xs"
+                                    value={service.frequency}
+                                    onChange={(e) => updatePestService(service.id, 'frequency', e.target.value)}
+                                />
+                                <input 
+                                    placeholder="Alan (Örn: Tüm Tesis)" 
+                                    className="col-span-2 border rounded p-1.5 text-xs"
+                                    value={service.area}
+                                    onChange={(e) => updatePestService(service.id, 'area', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
            </div>
 
            {/* Süre ve Ücret */}
@@ -405,55 +380,25 @@ const ContractPage = () => {
              </div>
            </div>
 
-           {/* Banka Hesapları */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-             <div className="flex justify-between items-center mb-3">
-                <h2 className="font-bold text-gray-700 flex items-center gap-2"><Check size={18}/> Banka Bilgileri</h2>
-                <button onClick={() => setBankAccounts([...bankAccounts, { id: Date.now().toString(), bank: '', branch: '', accountNo: '', iban: '' }])} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Plus size={16}/></button>
-             </div>
-             <div className="space-y-3">
-                 {bankAccounts.map((acc, i) => (
-                     <div key={acc.id} className="p-3 bg-gray-50 rounded border relative group">
-                         <input placeholder="Banka Adı" value={acc.bank} onChange={e => {
-                             const newAccs = [...bankAccounts]; newAccs[i].bank = e.target.value; setBankAccounts(newAccs);
-                         }} className="bg-transparent border-b w-full text-sm font-bold mb-1 outline-none"/>
-                         <div className="grid grid-cols-2 gap-2">
-                             <input placeholder="Şube" value={acc.branch} onChange={e => {
-                                 const newAccs = [...bankAccounts]; newAccs[i].branch = e.target.value; setBankAccounts(newAccs);
-                             }} className="bg-transparent border-b w-full text-xs outline-none"/>
-                             <input placeholder="Hesap No" value={acc.accountNo} onChange={e => {
-                                 const newAccs = [...bankAccounts]; newAccs[i].accountNo = e.target.value; setBankAccounts(newAccs);
-                             }} className="bg-transparent border-b w-full text-xs outline-none"/>
-                         </div>
-                         <input placeholder="IBAN" value={acc.iban} onChange={e => {
-                             const newAccs = [...bankAccounts]; newAccs[i].iban = e.target.value; setBankAccounts(newAccs);
-                         }} className="bg-transparent border-b w-full text-xs mt-2 font-mono outline-none"/>
-                         
-                         {bankAccounts.length > 1 && <button onClick={() => setBankAccounts(bankAccounts.filter(b => b.id !== acc.id))} className="absolute top-2 right-2 text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600"><Trash2 size={14}/></button>}
-                     </div>
-                 ))}
-             </div>
-           </div>
-
            {/* Maddeler */}
            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
              <div className="flex justify-between items-center mb-3">
-                <h2 className="font-bold text-gray-700 flex items-center gap-2"><FileText size={18}/> Sözleşme Maddeleri</h2>
-                <button onClick={() => { if(confirm('Tüm maddeler varsayılana dönecek?')) setContractClauses(DEFAULT_CLAUSES); }} className="text-gray-400 hover:text-gray-600 text-xs flex items-center gap-1"><RotateCcw size={12}/> Sıfırla</button>
+                <h2 className="font-bold text-gray-700 flex items-center gap-2"><FileText size={18}/> Maddeler</h2>
+                <button onClick={() => { if(confirm('Sıfırlamak istediğinize emin misiniz?')) setContractClauses(DEFAULT_CLAUSES); }} className="text-gray-400 hover:text-gray-600 text-xs flex items-center gap-1"><RotateCcw size={12}/> Sıfırla</button>
              </div>
-             <div className="space-y-2">
+             <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                  {contractClauses.map((clause, i) => (
-                     <div key={clause.id} className="border rounded p-3 text-sm bg-gray-50 group hover:bg-white hover:shadow-sm transition-all">
+                     <div key={clause.id} className="border rounded p-2 text-sm bg-gray-50">
                          <div className="flex justify-between items-center mb-1">
-                             <span className="font-bold text-gray-700">{clause.number}. {clause.title}</span>
+                             <span className="font-bold text-xs text-gray-700">{clause.number}. {clause.title}</span>
                          </div>
                          <textarea 
-                            rows={3}
+                            rows={2}
                             value={clause.content} 
                             onChange={e => {
                                 const newClauses = [...contractClauses]; newClauses[i].content = e.target.value; setContractClauses(newClauses);
                             }}
-                            className="w-full bg-transparent border-none resize-y text-gray-600 text-xs focus:ring-0 p-0"
+                            className="w-full bg-transparent border-none resize-y text-gray-600 text-[11px] focus:ring-0 p-0"
                          />
                      </div>
                  ))}
@@ -492,136 +437,144 @@ const ContractPage = () => {
         <div className={`lg:col-span-7 ${activeTab === 'edit' ? 'hidden lg:block' : ''}`}>
              <div className="sticky top-24">
                 <div className="bg-gray-800 text-white text-xs px-4 py-2 rounded-t-lg flex justify-between items-center">
-                    <span>A4 Önizleme (2 Sayfa)</span>
+                    <span>A4 Önizleme (Sayfa Ayrımlı)</span>
                     <Printer size={14} className="cursor-pointer hover:text-blue-300" onClick={() => window.print()}/>
                 </div>
                 
                 <div className="overflow-auto bg-gray-500/10 p-4 rounded-b-lg border border-gray-300 h-[calc(100vh-160px)] custom-scrollbar">
                     <div ref={contractRef}>
                         
-                        {/* SAYFA 1 */}
-                        <div ref={page1Ref} className="bg-white shadow-lg mx-auto mb-8 relative p-[20mm] text-[11px] leading-relaxed text-justify text-gray-800" style={{ width: '210mm', height: '297mm' }}>
-                            {/* Header */}
-                            <div className="flex justify-between items-center mb-8 border-b-2 border-gray-800 pb-4">
-                                {formData.logo ? (
-                                    <img src={formData.logo} className="h-16 object-contain" alt="Logo" />
-                                ) : (
-                                    <div className="text-xl font-bold text-gray-300 tracking-widest">{serviceProvider.shortName}</div>
-                                )}
-                                <div className="text-right">
-                                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">HİZMET SÖZLEŞMESİ</h1>
-                                    <p className="font-mono text-gray-500">NO: {formData.contractNumber}</p>
-                                </div>
-                            </div>
-
-                            {/* Maddeler 1-5 */}
-                            <div className="space-y-4">
-                                {contractClauses.slice(0, 5).map(clause => (
-                                    <div key={clause.id}>
-                                        <h3 className="font-bold text-black border-b border-gray-200 mb-1">{clause.number}. {clause.title}</h3>
-                                        <div className="whitespace-pre-line text-gray-700">
-                                            {replaceVariables(clause.content)}
-                                        </div>
-                                        {/* Tablo Eklemeleri */}
-                                        {clause.number === '2' && (
-                                            <div className="grid grid-cols-2 gap-4 mt-2 bg-gray-50 p-2 border text-[10px]">
-                                                <div>
-                                                    <strong className="block text-gray-900">HİZMET ALAN (İŞVEREN)</strong>
-                                                    <p>{formData.clientName}</p>
-                                                    <p>{formData.clientAddress}</p>
-                                                    <p>Tel: {formData.clientPhone} | Mail: {formData.clientEmail}</p>
-                                                </div>
-                                                <div>
-                                                    <strong className="block text-gray-900">HİZMET VEREN</strong>
-                                                    <p>{serviceProvider.name}</p>
-                                                    <p>{serviceProvider.address}</p>
-                                                    <p>Tel: {serviceProvider.phone} | Mail: {serviceProvider.email}</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {clause.number === '3' && (
-                                            <table className="w-full mt-2 border-collapse text-[10px]">
-                                                <thead>
-                                                    <tr className="bg-gray-100">
-                                                        <th className="border p-1 text-left">ZARARLI TÜRÜ</th>
-                                                        <th className="border p-1 text-left">SIKLIK</th>
-                                                        <th className="border p-1 text-left">ALAN</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {pestServices.map(ps => (
-                                                        <tr key={ps.id}>
-                                                            <td className="border p-1">{ps.pests}</td>
-                                                            <td className="border p-1">{ps.frequency}</td>
-                                                            <td className="border p-1">{ps.area}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        )}
+                        {/* SAYFA 1: Maddeler 1-5 + Tablo */}
+                        <div ref={page1Ref} className="bg-white shadow-lg mx-auto mb-8 relative p-[20mm] text-[11px] leading-relaxed text-justify text-gray-800 flex flex-col justify-between" style={{ width: '210mm', height: '297mm' }}>
+                            <div>
+                                {/* Header */}
+                                <div className="flex justify-between items-center mb-6 border-b-2 border-gray-800 pb-4">
+                                    {formData.logo ? (
+                                        <img src={formData.logo} className="h-16 object-contain" alt="Logo" />
+                                    ) : (
+                                        <div className="text-xl font-bold text-gray-300 tracking-widest">{serviceProvider.shortName}</div>
+                                    )}
+                                    <div className="text-right">
+                                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">HİZMET SÖZLEŞMESİ</h1>
+                                        <p className="font-mono text-gray-500">NO: {formData.contractNumber}</p>
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* Content Page 1 */}
+                                <div className="space-y-3">
+                                    {contractClauses.slice(0, 5).map(clause => (
+                                        <div key={clause.id}>
+                                            <h3 className="font-bold text-black border-b border-gray-200 mb-1">{clause.number}. {clause.title}</h3>
+                                            <div className="whitespace-pre-line text-gray-700">
+                                                {replaceVariables(clause.content)}
+                                            </div>
+                                            
+                                            {/* Madde 2 için Özel Tablo */}
+                                            {clause.number === '2' && (
+                                                <div className="grid grid-cols-2 gap-4 mt-2 bg-gray-50 p-2 border text-[10px]">
+                                                    <div>
+                                                        <strong className="block text-gray-900 border-b pb-1 mb-1">HİZMET ALAN (İŞVEREN)</strong>
+                                                        <p className="font-bold">{formData.clientName}</p>
+                                                        <p>{formData.clientAddress}</p>
+                                                        <p>Tel: {formData.clientPhone} | Mail: {formData.clientEmail}</p>
+                                                    </div>
+                                                    <div>
+                                                        <strong className="block text-gray-900 border-b pb-1 mb-1">HİZMET VEREN</strong>
+                                                        <p className="font-bold">{serviceProvider.name}</p>
+                                                        <p>{serviceProvider.address}</p>
+                                                        <p>Tel: {serviceProvider.phone} | Mail: {serviceProvider.email}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Madde 3 için Zararlı Tablosu */}
+                                            {clause.number === '3' && (
+                                                <table className="w-full mt-2 border-collapse text-[10px]">
+                                                    <thead>
+                                                        <tr className="bg-gray-100">
+                                                            <th className="border p-1 text-left w-1/3">ZARARLI TÜRÜ</th>
+                                                            <th className="border p-1 text-left w-1/3">SIKLIK</th>
+                                                            <th className="border p-1 text-left w-1/3">ALAN</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {pestServices.map(ps => (
+                                                            <tr key={ps.id}>
+                                                                <td className="border p-1">{ps.pests}</td>
+                                                                <td className="border p-1">{ps.frequency}</td>
+                                                                <td className="border p-1">{ps.area}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             
                             {/* Footer 1 */}
-                            <div className="absolute bottom-4 left-0 w-full text-center text-[9px] text-gray-400">
-                                Sayfa 1 / 2 - {formData.contractNumber}
+                            <div className="w-full text-center text-[9px] text-gray-400 pt-4 border-t mt-4">
+                                Sayfa 1 / 2 - {formData.contractNumber} - {serviceProvider.shortName}
                             </div>
                         </div>
 
-                        {/* SAYFA 2 */}
-                        <div ref={page2Ref} className="bg-white shadow-lg mx-auto relative p-[20mm] text-[11px] leading-relaxed text-justify text-gray-800" style={{ width: '210mm', height: '297mm' }}>
-                            <div className="space-y-4">
-                                {contractClauses.slice(5).map(clause => (
-                                    <div key={clause.id}>
-                                        <h3 className="font-bold text-black border-b border-gray-200 mb-1">{clause.number}. {clause.title}</h3>
-                                        <div className="whitespace-pre-line text-gray-700">
-                                            {replaceVariables(clause.content)}
-                                        </div>
-                                        {/* Banka Bilgileri */}
-                                        {clause.number === '8' && (
-                                            <div className="mt-2 p-2 border rounded bg-gray-50">
-                                                <p className="font-bold text-center mb-1 text-[10px]">BANKA HESAP BİLGİLERİ</p>
-                                                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                                    {bankAccounts.map(acc => (
-                                                        <div key={acc.id}>
-                                                            <p className="font-bold">{acc.bank} - {acc.branch}</p>
-                                                            <p>IBAN: {acc.iban}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                        {/* SAYFA 2: Maddeler 6-9 + İmzalar */}
+                        <div ref={page2Ref} className="bg-white shadow-lg mx-auto relative p-[20mm] text-[11px] leading-relaxed text-justify text-gray-800 flex flex-col justify-between" style={{ width: '210mm', height: '297mm' }}>
+                            <div>
+                                <div className="space-y-4">
+                                    {contractClauses.slice(5).map(clause => (
+                                        <div key={clause.id}>
+                                            <h3 className="font-bold text-black border-b border-gray-200 mb-1">{clause.number}. {clause.title}</h3>
+                                            <div className="whitespace-pre-line text-gray-700">
+                                                {replaceVariables(clause.content)}
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
+                                            {/* Banka Bilgileri */}
+                                            {clause.number === '8' && (
+                                                <div className="mt-2 p-2 border rounded bg-gray-50">
+                                                    <p className="font-bold text-center mb-1 text-[10px] border-b pb-1">BANKA HESAP BİLGİLERİ</p>
+                                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                                        {bankAccounts.map(acc => (
+                                                            <div key={acc.id} className="p-1">
+                                                                <p className="font-bold text-blue-800">{acc.bank} - {acc.branch}</p>
+                                                                <p>IBAN: <span className="font-mono">{acc.iban}</span></p>
+                                                                <p>Hesap No: {acc.accountNo}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
 
-                            {/* İmzalar */}
-                            <div className="mt-12 pt-8 border-t-2 border-gray-800">
-                                <div className="text-center mb-4 font-bold">SÖZLEŞME TARİHİ: {new Date(formData.contractDate).toLocaleDateString('tr-TR')}</div>
-                                <div className="flex justify-between">
-                                    <div className="w-1/3 text-center">
-                                        <p className="font-bold mb-2">HİZMET VEREN</p>
-                                        <p className="text-[10px] h-8 overflow-hidden">{serviceProvider.name}</p>
-                                        <div className="h-20 border border-dashed border-gray-300 mt-2 flex items-center justify-center relative">
-                                            {signatures.provider.image ? <img src={signatures.provider.image} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="text-gray-200 text-[10px]">İMZA/KAŞE</span>}
+                                {/* İmzalar */}
+                                <div className="mt-8 pt-6 border-t-2 border-gray-800">
+                                    <div className="text-center mb-4 font-bold bg-gray-100 py-1">SÖZLEŞME İMZA TARİHİ: {new Date(formData.contractDate).toLocaleDateString('tr-TR')}</div>
+                                    <div className="flex justify-between px-8">
+                                        <div className="w-1/3 text-center">
+                                            <p className="font-bold mb-1 text-xs">HİZMET VEREN</p>
+                                            <p className="text-[9px] h-8 overflow-hidden leading-tight mb-2">{serviceProvider.name}</p>
+                                            <div className="h-20 border border-dashed border-gray-300 flex items-center justify-center relative bg-gray-50/50">
+                                                {signatures.provider.image ? <img src={signatures.provider.image} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="text-gray-300 text-[9px]">İMZA/KAŞE</span>}
+                                            </div>
+                                            <p className="text-[9px] mt-1 text-gray-500">{new Date(signatures.provider.date).toLocaleDateString('tr-TR')}</p>
                                         </div>
-                                        <p className="text-[9px] mt-1 text-gray-500">{new Date(signatures.provider.date).toLocaleDateString('tr-TR')}</p>
-                                    </div>
-                                    <div className="w-1/3 text-center">
-                                        <p className="font-bold mb-2">HİZMET ALAN (MÜŞTERİ)</p>
-                                        <p className="text-[10px] h-8 overflow-hidden">{formData.clientName}</p>
-                                        <div className="h-20 border border-dashed border-gray-300 mt-2 flex items-center justify-center relative">
-                                            {signatures.client.image ? <img src={signatures.client.image} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="text-gray-200 text-[10px]">İMZA/KAŞE</span>}
+                                        <div className="w-1/3 text-center">
+                                            <p className="font-bold mb-1 text-xs">HİZMET ALAN (MÜŞTERİ)</p>
+                                            <p className="text-[9px] h-8 overflow-hidden leading-tight mb-2">{formData.clientName || '..................'}</p>
+                                            <div className="h-20 border border-dashed border-gray-300 flex items-center justify-center relative bg-gray-50/50">
+                                                {signatures.client.image ? <img src={signatures.client.image} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="text-gray-300 text-[9px]">İMZA/KAŞE</span>}
+                                            </div>
+                                            <p className="text-[9px] mt-1 text-gray-500">{new Date(signatures.client.date).toLocaleDateString('tr-TR')}</p>
                                         </div>
-                                        <p className="text-[9px] mt-1 text-gray-500">{new Date(signatures.client.date).toLocaleDateString('tr-TR')}</p>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Footer 2 */}
-                            <div className="absolute bottom-4 left-0 w-full text-center text-[9px] text-gray-400">
-                                Sayfa 2 / 2 - {serviceProvider.shortName} Hizmet Sözleşmesi
+                            <div className="w-full text-center text-[9px] text-gray-400 pt-4 border-t">
+                                Sayfa 2 / 2 - {formData.contractNumber} - {serviceProvider.shortName}
                             </div>
                         </div>
 
