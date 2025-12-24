@@ -1,39 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   AlertTriangle, 
   CheckCircle, 
   X, 
   Download, 
   Save, 
-  Clipboard, 
   Building, 
-  Calendar, 
-  User, 
-  FileText,
-  Mail,
-  Phone,
-  Image,
-  Info,
-  Plus,
-  Trash2,
-  ArrowDown,
-  ArrowUp,
-  Edit,
-  Upload
+  FileText, 
+  Image as ImageIcon, 
+  Plus, 
+  Trash2, 
+  ArrowDown, 
+  ArrowUp, 
+  Edit, 
+  Upload,
+  Search,
+  Copy,
+  PenTool,
+  ChevronDown,
+  Camera,
+  RefreshCw,
+  Filter
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+// --- TİP TANIMLARI ---
 interface HazardItem {
   id: string;
   hazard: string;
   category: string;
   consequences: string;
   existingControls: string;
-  likelihood: number;
-  severity: number;
-  riskScore: number;
+  likelihood: number; // 1-5
+  severity: number;   // 1-5
+  riskScore: number;  // L x S
   riskLevel: string;
   recommendedControls: string;
   responsiblePerson: string;
@@ -43,6 +44,7 @@ interface HazardItem {
   newSeverity: number;
   newRiskScore: number;
   newRiskLevel: string;
+  evidencePhoto: string | null; // Kanıt fotoğrafı
 }
 
 interface ReportInfo {
@@ -54,1861 +56,755 @@ interface ReportInfo {
   reviewDate: string;
   companyLogo: string | null;
   footerText: string;
-  visitFrequency: 'weekly-1' | 'monthly-2' | 'monthly-4' | '';
+  visitFrequency: string;
 }
 
-const HazardRiskAssessmentPage = () => {
-  const [hazards, setHazards] = useState<HazardItem[]>([
-    {
-      id: '1',
-      hazard: 'Kemirgen istilası',
-      category: 'Biyolojik',
-      consequences: 'Gıda kontaminasyonu, hastalık bulaşma riski, yapısal hasar',
-      existingControls: 'Periyodik ilaçlama, kapı altı fitilleri',
-      likelihood: 3,
-      severity: 4,
-      riskScore: 12,
-      riskLevel: 'Yüksek',
-      recommendedControls: 'Kemirgen istasyonlarının sayısını artırma, giriş noktalarını kapatma',
-      responsiblePerson: 'Kalite Müdürü',
-      targetDate: '2025-07-30',
-      status: 'in-progress',
-      newLikelihood: 2,
-      newSeverity: 4,
-      newRiskScore: 8,
-      newRiskLevel: 'Orta'
-    },
-    {
-      id: '2',
-      hazard: 'Hamam böceği istilası',
-      category: 'Biyolojik',
-      consequences: 'Gıda kontaminasyonu, müşteri şikayetleri, itibar kaybı',
-      existingControls: 'Aylık ilaçlama, hijyen prosedürleri',
-      likelihood: 4,
-      severity: 3,
-      riskScore: 12,
-      riskLevel: 'Yüksek',
-      recommendedControls: 'Jel yem uygulaması, çatlak ve yarıkları kapatma',
-      responsiblePerson: 'Üretim Müdürü',
-      targetDate: '2025-06-15',
-      status: 'open',
-      newLikelihood: 2,
-      newSeverity: 3,
-      newRiskScore: 6,
-      newRiskLevel: 'Orta'
-    },
-    {
-      id: '3',
-      hazard: 'Uçan böcek istilası',
-      category: 'Biyolojik',
-      consequences: 'Gıda kontaminasyonu, müşteri şikayetleri',
-      existingControls: 'Hava perdesi, sineklikler',
-      likelihood: 3,
-      severity: 3,
-      riskScore: 9,
-      riskLevel: 'Orta',
-      recommendedControls: 'EFK cihazlarının sayısını artırma, kapı disiplini eğitimi',
-      responsiblePerson: 'Kalite Müdürü',
-      targetDate: '2025-06-30',
-      status: 'completed',
-      newLikelihood: 1,
-      newSeverity: 3,
-      newRiskScore: 3,
-      newRiskLevel: 'Düşük'
-    }
-  ]);
+interface Signature {
+    name: string;
+    title: string;
+    signatureImage: string | null;
+}
 
+// --- HAZIR ŞABLON VERİLERİ ---
+const PREDEFINED_HAZARDS = [
+    {
+        category: 'Biyolojik',
+        hazard: 'Kemirgen Aktivitesi',
+        consequences: 'Gıda kontaminasyonu, hastalık riski, kablo kemirme sonucu yangın riski.',
+        existingControls: 'Dış hat istasyonları mevcut.',
+        recommendedControls: 'Bina girişlerindeki açıklıkların kapatılması (yalıtım), istasyon sayısının artırılması.'
+    },
+    {
+        category: 'Biyolojik',
+        hazard: 'Hamam Böceği İstilası',
+        consequences: 'Patojen taşıma, gıda zehirlenmesi, müşteri şikayeti.',
+        existingControls: 'Aylık rutin ilaçlama.',
+        recommendedControls: 'Jel yem uygulamasına geçilmesi, fayans aralarındaki derzlerin yenilenmesi.'
+    },
+    {
+        category: 'Fiziksel',
+        hazard: 'Yalıtım Eksikliği (Kapı Altları)',
+        consequences: 'Zararlı girişi, toz ve kir girişi, ısı kaybı.',
+        existingControls: 'Yok.',
+        recommendedControls: 'Tüm dış kapı altlarına fırçalı süpürgelik takılması.'
+    },
+    {
+        category: 'Hijyen',
+        hazard: 'Birikmiş Gıda Atıkları',
+        consequences: 'Zararlı çekiciliği, kötü koku, bakteri üremesi.',
+        existingControls: 'Günlük temizlik.',
+        recommendedControls: 'Atık kovalarının kapaklı olması ve temizlik sıklığının artırılması.'
+    },
+    {
+        category: 'Kimyasal',
+        hazard: 'Hatalı Pestisit Depolama',
+        consequences: 'Çevre kirliliği, zehirlenme riski.',
+        existingControls: 'Depo kilitli.',
+        recommendedControls: 'Kimyasalların MSDS formlarının asılması ve dökülme havuzu kullanılması.'
+    }
+];
+
+// --- ANA BİLEŞEN ---
+const HazardRiskAssessmentPage = () => {
+  // --- STATE ---
+  const [loading, setLoading] = useState(false);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
+  const [showHazardForm, setShowHazardForm] = useState(false);
+  const [showPredefinedList, setShowPredefinedList] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const reportRef = useRef<HTMLDivElement>(null);
+  const predefinedListRef = useRef<HTMLDivElement>(null);
+
+  // Form Verileri
   const [reportInfo, setReportInfo] = useState<ReportInfo>({
-    companyName: '',
+    companyName: 'PestMentor',
     companyAddress: '',
     assessmentDate: new Date().toISOString().split('T')[0],
     assessor: '',
-    department: '',
-    reviewDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    department: 'Genel',
+    reviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     companyLogo: null,
-    footerText: 'PestMentor © 2025 | Sistem İlaçlama San. ve Tic. Ltd. Şti. | www.pestmentor.com.tr',
-    visitFrequency: ''
+    footerText: 'PestMentor © 2025 | Profesyonel Risk Yönetim Sistemi',
+    visitFrequency: 'monthly-1'
   });
 
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [showHazardForm, setShowHazardForm] = useState(false);
+  const [hazards, setHazards] = useState<HazardItem[]>([]);
   const [currentHazard, setCurrentHazard] = useState<HazardItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'report' | 'preview'>('report');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  
-  const reportRef = useRef<HTMLDivElement>(null);
-  const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Calculate risk level based on likelihood and severity
-  const calculateRiskLevel = (likelihood: number, severity: number): string => {
-    const score = likelihood * severity;
-    if (score >= 15) return 'Çok Yüksek';
-    if (score >= 10) return 'Yüksek';
-    if (score >= 5) return 'Orta';
-    if (score >= 3) return 'Düşük';
-    return 'Çok Düşük';
+  // İmzalar
+  const [signatures, setSignatures] = useState<{assessor: Signature, client: Signature}>({
+      assessor: { name: '', title: 'Risk Değerlendirme Uzmanı', signatureImage: null },
+      client: { name: '', title: 'İşletme Yetkilisi', signatureImage: null }
+  });
+
+  // --- INIT & AUTOSAVE ---
+  useEffect(() => {
+    const saved = localStorage.getItem('riskAssessment_Draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setReportInfo(parsed.reportInfo);
+        setHazards(parsed.hazards);
+        if(parsed.signatures) setSignatures(parsed.signatures);
+      } catch (e) { console.error("Kayıt yüklenemedi"); }
+    } else {
+        // İlk açılışta boş ise 1 tane örnek ekle
+        addHazard(PREDEFINED_HAZARDS[0]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem('riskAssessment_Draft', JSON.stringify({ reportInfo, hazards, signatures }));
+      setAutoSaved(true);
+      setTimeout(() => setAutoSaved(false), 2000);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [reportInfo, hazards, signatures]);
+
+  // Click Outside Listener for Dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (predefinedListRef.current && !predefinedListRef.current.contains(event.target as Node)) {
+        setShowPredefinedList(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // --- HESAPLAMA FONKSİYONLARI ---
+  const calculateRiskLevel = (score: number): string => {
+    if (score >= 15) return 'Çok Yüksek'; // 15-25
+    if (score >= 10) return 'Yüksek';     // 10-12
+    if (score >= 5) return 'Orta';        // 5-9
+    if (score >= 3) return 'Düşük';       // 3-4
+    return 'Çok Düşük';                   // 1-2
   };
 
-  // Calculate risk score and level for a hazard
-  const calculateRisk = (hazard: HazardItem): HazardItem => {
-    const riskScore = hazard.likelihood * hazard.severity;
-    const riskLevel = calculateRiskLevel(hazard.likelihood, hazard.severity);
-    const newRiskScore = hazard.newLikelihood * hazard.newSeverity;
-    const newRiskLevel = calculateRiskLevel(hazard.newLikelihood, hazard.newSeverity);
-    
-    return {
-      ...hazard,
-      riskScore,
-      riskLevel,
-      newRiskScore,
-      newRiskLevel
-    };
+  const getRiskColor = (score: number) => {
+      if (score >= 15) return 'bg-red-600 text-white';
+      if (score >= 10) return 'bg-orange-500 text-white';
+      if (score >= 5) return 'bg-yellow-400 text-black';
+      if (score >= 3) return 'bg-green-500 text-white';
+      return 'bg-green-200 text-green-900';
   };
 
-  // Add a new hazard
-  const addHazard = () => {
+  // --- CRUD İŞLEMLERİ ---
+  const addHazard = (template?: any) => {
     const newHazard: HazardItem = {
-      id: Date.now().toString(),
-      hazard: '',
-      category: 'Biyolojik',
-      consequences: '',
-      existingControls: '',
+      id: `h-${Date.now()}`,
+      hazard: template?.hazard || '',
+      category: template?.category || 'Biyolojik',
+      consequences: template?.consequences || '',
+      existingControls: template?.existingControls || '',
       likelihood: 3,
       severity: 3,
       riskScore: 9,
       riskLevel: 'Orta',
-      recommendedControls: '',
-      responsiblePerson: '',
-      targetDate: new Date().toISOString().split('T')[0],
+      recommendedControls: template?.recommendedControls || '',
+      responsiblePerson: 'İşletme Yönetimi',
+      targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'open',
-      newLikelihood: 2,
+      newLikelihood: 1,
       newSeverity: 3,
-      newRiskScore: 6,
-      newRiskLevel: 'Orta'
+      newRiskScore: 3,
+      newRiskLevel: 'Düşük',
+      evidencePhoto: null
     };
     
-    setCurrentHazard(calculateRisk(newHazard));
-    setShowHazardForm(true);
-  };
-
-  // Edit an existing hazard
-  const editHazard = (hazard: HazardItem) => {
-    setCurrentHazard(hazard);
-    setShowHazardForm(true);
-  };
-
-  // Delete a hazard
-  const deleteHazard = (id: string) => {
-    setHazards(hazards.filter(h => h.id !== id));
-  };
-
-  // Save hazard changes
-  const saveHazard = () => {
-    if (!currentHazard) return;
-    
-    const updatedHazard = calculateRisk(currentHazard);
-    
-    if (hazards.some(h => h.id === updatedHazard.id)) {
-      // Update existing hazard
-      setHazards(hazards.map(h => h.id === updatedHazard.id ? updatedHazard : h));
+    // Eğer şablondan geliyorsa direkt listeye ekle, yoksa modal aç
+    if (template) {
+        setHazards(prev => [...prev, newHazard]);
+        setShowPredefinedList(false);
     } else {
-      // Add new hazard
-      setHazards([...hazards, updatedHazard]);
+        setCurrentHazard(newHazard);
+        setShowHazardForm(true);
     }
-    
-    setShowHazardForm(false);
-    setCurrentHazard(null);
   };
 
-  // Handle hazard form input changes
-  const handleHazardChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    if (!currentHazard) return;
-    
-    const { name, value } = e.target;
-    
-    let updatedHazard = { ...currentHazard, [name]: value };
-    
-    // Recalculate risk scores if likelihood or severity changes
-    if (['likelihood', 'severity', 'newLikelihood', 'newSeverity'].includes(name)) {
-      const numValue = parseInt(value);
-      updatedHazard = {
-        ...updatedHazard,
-        [name]: numValue
-      };
+  const updateHazardField = (name: keyof HazardItem, value: any) => {
+      if (!currentHazard) return;
       
-      if (name === 'likelihood' || name === 'severity') {
-        const riskScore = name === 'likelihood' 
-          ? numValue * updatedHazard.severity 
-          : updatedHazard.likelihood * numValue;
-        
-        updatedHazard = {
-          ...updatedHazard,
-          riskScore,
-          riskLevel: calculateRiskLevel(
-            name === 'likelihood' ? numValue : updatedHazard.likelihood,
-            name === 'severity' ? numValue : updatedHazard.severity
-          )
-        };
+      let updated = { ...currentHazard, [name]: value };
+
+      // Risk hesaplaması
+      if (['likelihood', 'severity', 'newLikelihood', 'newSeverity'].includes(name)) {
+          const l = name === 'likelihood' ? parseInt(value) : updated.likelihood;
+          const s = name === 'severity' ? parseInt(value) : updated.severity;
+          updated.riskScore = l * s;
+          updated.riskLevel = calculateRiskLevel(updated.riskScore);
+
+          const nl = name === 'newLikelihood' ? parseInt(value) : updated.newLikelihood;
+          const ns = name === 'newSeverity' ? parseInt(value) : updated.newSeverity;
+          updated.newRiskScore = nl * ns;
+          updated.newRiskLevel = calculateRiskLevel(updated.newRiskScore);
       }
+
+      setCurrentHazard(updated);
+  };
+
+  const saveCurrentHazard = () => {
+      if (!currentHazard) return;
       
-      if (name === 'newLikelihood' || name === 'newSeverity') {
-        const newRiskScore = name === 'newLikelihood' 
-          ? numValue * updatedHazard.newSeverity 
-          : updatedHazard.newLikelihood * numValue;
-        
-        updatedHazard = {
-          ...updatedHazard,
-          newRiskScore,
-          newRiskLevel: calculateRiskLevel(
-            name === 'newLikelihood' ? numValue : updatedHazard.newLikelihood,
-            name === 'newSeverity' ? numValue : updatedHazard.newSeverity
-          )
-        };
+      setHazards(prev => {
+          const index = prev.findIndex(h => h.id === currentHazard.id);
+          if (index > -1) {
+              const newArr = [...prev];
+              newArr[index] = currentHazard;
+              return newArr;
+          } else {
+              return [...prev, currentHazard];
+          }
+      });
+      setShowHazardForm(false);
+      setCurrentHazard(null);
+  };
+
+  const deleteHazard = (id: string) => {
+      if(confirm('Silmek istediğinize emin misiniz?')) {
+          setHazards(prev => prev.filter(h => h.id !== id));
       }
-    }
-    
-    setCurrentHazard(updatedHazard);
   };
 
-  // Handle report info changes
-  const handleReportInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setReportInfo(prev => ({ ...prev, [name]: value }));
+  const moveHazard = (index: number, direction: 'up' | 'down') => {
+      if (direction === 'up' && index === 0) return;
+      if (direction === 'down' && index === hazards.length - 1) return;
+      
+      const newArr = [...hazards];
+      const target = direction === 'up' ? index - 1 : index + 1;
+      [newArr[index], newArr[target]] = [newArr[target], newArr[index]];
+      setHazards(newArr);
   };
 
-  // Handle logo upload
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const duplicateHazard = (hazard: HazardItem) => {
+      const copy = { ...hazard, id: `h-${Date.now()}` };
+      setHazards(prev => [...prev, copy]);
+  };
+
+  // --- FOTOĞRAF YÜKLEME ---
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEvidence: boolean = false) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+              if (ev.target?.result) {
+                  if (isEvidence && currentHazard) {
+                      updateHazardField('evidencePhoto', ev.target.result);
+                  } else if (!isEvidence) {
+                      setReportInfo(prev => ({ ...prev, companyLogo: ev.target?.result as string }));
+                  }
+              }
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const handleSignatureUpload = (type: 'assessor' | 'client', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setReportInfo(prev => ({ ...prev, companyLogo: event.target?.result as string }));
-        }
-      };
-      reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setSignatures(prev => ({
+                    ...prev,
+                    [type]: { ...prev[type], signatureImage: event.target?.result as string }
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
     }
   };
 
-  // Calculate average risk scores
-  const calculateAverageRiskScores = () => {
-    if (hazards.length === 0) return { initial: 0, final: 0 };
-
-    const initialSum = hazards.reduce((sum, hazard) => sum + hazard.riskScore, 0);
-    const finalSum = hazards.reduce((sum, hazard) => sum + hazard.newRiskScore, 0);
-
-    return {
-      initial: Math.round((initialSum / hazards.length) * 10) / 10,
-      final: Math.round((finalSum / hazards.length) * 10) / 10
-    };
-  };
-
-  // Calculate visit plan
-  const calculateVisitPlan = () => {
-    if (!reportInfo.visitFrequency) {
-      return { summer: 0, winter: 0, label: '' };
-    }
-
-    let monthlyVisits = 0;
-    let label = '';
-
-    switch (reportInfo.visitFrequency) {
-      case 'weekly-1':
-        monthlyVisits = 4;
-        label = 'Haftada 1 Ziyaret';
-        break;
-      case 'monthly-2':
-        monthlyVisits = 2;
-        label = 'Ayda 2 Ziyaret';
-        break;
-      case 'monthly-4':
-        monthlyVisits = 4;
-        label = 'Ayda 4 Ziyaret';
-        break;
-    }
-
-    const summerMonths = 6;
-    const winterMonths = 6;
-
-    return {
-      summer: monthlyVisits * summerMonths,
-      winter: monthlyVisits * winterMonths,
-      label,
-      monthly: monthlyVisits
-    };
-  };
-
-  // Get risk level color
-  const getRiskLevelColor = (level: string): string => {
-    switch (level) {
-      case 'Çok Yüksek': return 'bg-red-600 text-white';
-      case 'Yüksek': return 'bg-red-500 text-white';
-      case 'Orta': return 'bg-yellow-500 text-white';
-      case 'Düşük': return 'bg-green-500 text-white';
-      case 'Çok Düşük': return 'bg-green-400 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
-  // Get status color
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'open': return 'bg-red-100 text-red-800';
-      case 'in-progress': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Get status text
-  const getStatusText = (status: string): string => {
-    switch (status) {
-      case 'open': return 'Açık';
-      case 'in-progress': return 'Devam Ediyor';
-      case 'completed': return 'Tamamlandı';
-      default: return status;
-    }
-  };
-
-  // Move hazard up in the list
-  const moveHazardUp = (id: string) => {
-    const index = hazards.findIndex(h => h.id === id);
-    if (index > 0) {
-      const newHazards = [...hazards];
-      [newHazards[index - 1], newHazards[index]] = [newHazards[index], newHazards[index - 1]];
-      setHazards(newHazards);
-    }
-  };
-
-  // Move hazard down in the list
-  const moveHazardDown = (id: string) => {
-    const index = hazards.findIndex(h => h.id === id);
-    if (index < hazards.length - 1) {
-      const newHazards = [...hazards];
-      [newHazards[index], newHazards[index + 1]] = [newHazards[index + 1], newHazards[index]];
-      setHazards(newHazards);
-    }
-  };
-
-  // Generate PDF report
+  // --- PDF GENERATION ---
   const generatePDF = async () => {
     if (!reportRef.current) return;
-    
     setLoading(true);
-    setError(null);
     
     try {
-      // Initialize PDF with A4 landscape
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
+      const element = reportRef.current;
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       
-      // Define page dimensions
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
+      const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape
+      const pdfWidth = 297;
+      const pdfHeight = 210;
       
-      // Get all page elements
-      const pageElements = reportRef.current.querySelectorAll('.report-page');
+      // Sayfa sayısını hesapla (her sayfa div'i 210mm yüksekliğinde)
+      // Preview modunda zaten sayfaları bölüyoruz, burada tek büyük canvas yerine sayfa sayfa alabiliriz
+      // Ancak basitlik için büyük canvas alıp bölüyoruz (Dikkat: Bu bazen kesilmelere yol açar)
+      // Daha güvenli yöntem: .report-page class'ına sahip her div'i ayrı ayrı render etmek.
       
-      // Process each page
-      for (let i = 0; i < pageElements.length; i++) {
-        const pageElement = pageElements[i] as HTMLElement;
-        
-        // Add a new page for all pages except the first one
-        if (i > 0) {
-          pdf.addPage();
-        }
-        
-        // Capture the page as an image
-        const canvas = await html2canvas(pageElement, {
-          scale: 2, // Higher scale for better quality
-          logging: false,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff'
-        });
-        
-        // Convert to image
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        
-        // Calculate dimensions to fit the page
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        // Add image to PDF
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      const pages = reportRef.current.querySelectorAll('.report-page');
+      
+      for (let i = 0; i < pages.length; i++) {
+          if (i > 0) pdf.addPage();
+          
+          const pageCanvas = await html2canvas(pages[i] as HTMLElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+          const pageImg = pageCanvas.toDataURL('image/jpeg', 0.95);
+          pdf.addImage(pageImg, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
-      
-      // Save the PDF
-      pdf.save(`Tehlike_Risk_Değerlendirme_${reportInfo.companyName || 'Rapor'}.pdf`);
-      
-      setSuccess('PDF raporu başarıyla oluşturuldu!');
+
+      pdf.save(`Risk_Degerlendirme_${reportInfo.companyName}.pdf`);
+      setSuccess('Rapor indirildi.');
       setTimeout(() => setSuccess(null), 3000);
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      setError('PDF oluşturulurken bir hata meydana geldi. Lütfen tekrar deneyin.');
+    } catch (err) {
+      console.error(err);
+      alert("PDF oluşturulurken hata oluştu.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate JPEG image
-  const generateJPEG = async () => {
-    if (!reportRef.current) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Get all page elements
-      const pageElements = reportRef.current.querySelectorAll('.report-page');
-      
-      // Process each page
-      for (let i = 0; i < pageElements.length; i++) {
-        const pageElement = pageElements[i] as HTMLElement;
-        
-        // Capture the page as an image
-        const canvas = await html2canvas(pageElement, {
-          scale: 2, // Higher scale for better quality
-          logging: false,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff'
-        });
-        
-        // Convert to image
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        
-        // Create a download link
-        const link = document.createElement('a');
-        link.href = imgData;
-        link.download = `Tehlike_Risk_Değerlendirme_${reportInfo.companyName || 'Rapor'}_Sayfa_${i+1}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Add a small delay between downloads
-        if (i < pageElements.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-      
-      setSuccess('JPEG görüntüleri başarıyla oluşturuldu!');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error) {
-      console.error('JPEG generation error:', error);
-      setError('JPEG oluşturulurken bir hata meydana geldi. Lütfen tekrar deneyin.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Calculate total pages based on content
-  useEffect(() => {
-    if (activeTab === 'preview' && reportRef.current) {
-      // Reset page refs array
-      pageRefs.current = [];
-      
-      // Get all page elements
-      const pageElements = reportRef.current.querySelectorAll('.report-page');
-      setTotalPages(pageElements.length);
-      
-      // Store refs to each page
-      pageElements.forEach((element) => {
-        pageRefs.current.push(element as HTMLDivElement);
-      });
-    }
-  }, [activeTab, hazards, reportInfo]);
-
-  // Navigate to specific page
-  const goToPage = (pageNumber: number) => {
-    if (pageNumber >= 1 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-
-      // Scroll to the page
-      if (pageRefs.current[pageNumber - 1]) {
-        pageRefs.current[pageNumber - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-  };
-
-  // Calculate average risk scores
-  const averageRiskScores = calculateAverageRiskScores();
-
-  // Calculate visit plan
-  const visitPlan = calculateVisitPlan();
-
+  // --- RENDER ---
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Tabs */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Tehlike Belirleme ve Risk Değerlendirme</h1>
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('report')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'report' 
-                ? 'bg-amber-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Rapor Oluştur
-          </button>
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'preview' 
-                ? 'bg-amber-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Önizleme
-          </button>
-        </div>
-      </div>
-
-      {/* Success and Error Messages */}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-          <CheckCircle className="h-5 w-5 mr-2" />
-          {success}
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-          <AlertTriangle className="h-5 w-5 mr-2" />
-          {error}
-        </div>
-      )}
-
-      {/* Report Creation Form */}
-      {activeTab === 'report' && (
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Report Info Form */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <Building className="h-6 w-6 text-amber-600 mr-2" />
-                Rapor Bilgileri
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Şirket Adı
-                  </label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={reportInfo.companyName}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Şirket adını girin"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Şirket Adresi
-                  </label>
-                  <input
-                    type="text"
-                    name="companyAddress"
-                    value={reportInfo.companyAddress}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Şirket adresini girin"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Değerlendirme Tarihi
-                  </label>
-                  <input
-                    type="date"
-                    name="assessmentDate"
-                    value={reportInfo.assessmentDate}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Değerlendiren Kişi
-                  </label>
-                  <input
-                    type="text"
-                    name="assessor"
-                    value={reportInfo.assessor}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Değerlendiren kişinin adı"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Departman/Bölüm
-                  </label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={reportInfo.department}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Departman veya bölüm adı"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Gözden Geçirme Tarihi
-                  </label>
-                  <input
-                    type="date"
-                    name="reviewDate"
-                    value={reportInfo.reviewDate}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Şirket Logosu
-                  </label>
-                  <div className="flex items-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                      id="logo-upload"
-                    />
-                    <label
-                      htmlFor="logo-upload"
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md cursor-pointer hover:bg-gray-200 transition-colors flex items-center"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Logo Yükle
-                    </label>
-                    {reportInfo.companyLogo && (
-                      <div className="ml-4 relative">
-                        <img src={reportInfo.companyLogo} alt="Logo" className="h-10 object-contain" />
-                        <button
-                          onClick={() => setReportInfo(prev => ({ ...prev, companyLogo: null }))}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alt Bilgi Metni
-                  </label>
-                  <input
-                    type="text"
-                    name="footerText"
-                    value={reportInfo.footerText}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="Alt bilgi metni"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ziyaret Sıklığı
-                  </label>
-                  <select
-                    name="visitFrequency"
-                    value={reportInfo.visitFrequency}
-                    onChange={handleReportInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="">Seçiniz</option>
-                    <option value="weekly-1">Haftada 1 Ziyaret</option>
-                    <option value="monthly-2">Ayda 2 Ziyaret</option>
-                    <option value="monthly-4">Ayda 4 Ziyaret</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Export Buttons */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Rapor Oluştur</h2>
-              
-              <div className="flex flex-col space-y-3">
-                <button
-                  onClick={generatePDF}
-                  disabled={loading}
-                  className="flex items-center justify-center bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors disabled:bg-gray-400"
-                >
-                  {loading ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      PDF Oluşturuluyor...
-                    </span>
-                  ) : (
-                    <>
-                      <Download className="mr-2" size={18} />
-                      PDF İndir
-                    </>
-                  )}
-                </button>
-                
-                <button
-                  onClick={generateJPEG}
-                  disabled={loading}
-                  className="flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                >
-                  {loading ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      JPEG Oluşturuluyor...
-                    </span>
-                  ) : (
-                    <>
-                      <Image className="mr-2" size={18} />
-                      JPEG İndir
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Hazards List */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Tehlike ve Risk Listesi</h2>
-                <button
-                  onClick={addHazard}
-                  className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors flex items-center"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Yeni Tehlike Ekle
-                </button>
-              </div>
-              
-              {hazards.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Henüz Tehlike Eklenmedi</h3>
-                  <p className="text-gray-500 mb-4">Değerlendirme yapmak için tehlike ekleyin.</p>
-                  <button
-                    onClick={addHazard}
-                    className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors inline-flex items-center"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    Tehlike Ekle
-                  </button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tehlike</th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İlk Risk</th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Son Risk</th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                        <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {hazards.map((hazard, index) => (
-                        <tr key={hazard.id} className="hover:bg-gray-50">
-                          <td className="py-4 px-4 text-sm font-medium text-gray-900">{hazard.hazard}</td>
-                          <td className="py-4 px-4 text-sm text-gray-500">{hazard.category}</td>
-                          <td className="py-4 px-4">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(hazard.riskLevel)}`}>
-                              {hazard.riskScore} - {hazard.riskLevel}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(hazard.newRiskLevel)}`}>
-                              {hazard.newRiskScore} - {hazard.newRiskLevel}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(hazard.status)}`}>
-                              {getStatusText(hazard.status)}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => editHazard(hazard)}
-                                className="text-indigo-600 hover:text-indigo-900"
-                                title="Düzenle"
-                              >
-                                <Edit className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => deleteHazard(hazard.id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Sil"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => moveHazardUp(hazard.id)}
-                                disabled={index === 0}
-                                className={`text-gray-600 hover:text-gray-900 ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Yukarı Taşı"
-                              >
-                                <ArrowUp className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => moveHazardDown(hazard.id)}
-                                disabled={index === hazards.length - 1}
-                                className={`text-gray-600 hover:text-gray-900 ${index === hazards.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Aşağı Taşı"
-                              >
-                                <ArrowDown className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Risk Matrix */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Risk Matrisi</h2>
-              
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Risk Matrisi</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300">
-                      <thead>
-                        <tr>
-                          <th className="border border-gray-300 p-2 bg-gray-100"></th>
-                          <th colSpan={5} className="border border-gray-300 p-2 bg-gray-100 text-center">Şiddet (S)</th>
-                        </tr>
-                        <tr>
-                          <th className="border border-gray-300 p-2 bg-gray-100">Olasılık (O)</th>
-                          <th className="border border-gray-300 p-2 bg-gray-100 text-center">1</th>
-                          <th className="border border-gray-300 p-2 bg-gray-100 text-center">2</th>
-                          <th className="border border-gray-300 p-2 bg-gray-100 text-center">3</th>
-                          <th className="border border-gray-300 p-2 bg-gray-100 text-center">4</th>
-                          <th className="border border-gray-300 p-2 bg-gray-100 text-center">5</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[5, 4, 3, 2, 1].map(likelihood => (
-                          <tr key={likelihood}>
-                            <td className="border border-gray-300 p-2 bg-gray-100 text-center font-medium">{likelihood}</td>
-                            {[1, 2, 3, 4, 5].map(severity => {
-                              const score = likelihood * severity;
-                              let bgColor = 'bg-green-100 text-green-800';
-                              if (score >= 15) bgColor = 'bg-red-600 text-white';
-                              else if (score >= 10) bgColor = 'bg-red-500 text-white';
-                              else if (score >= 5) bgColor = 'bg-yellow-500 text-white';
-                              else if (score >= 3) bgColor = 'bg-green-500 text-white';
-                              
-                              return (
-                                <td key={severity} className={`border border-gray-300 p-2 text-center ${bgColor}`}>
-                                  {score}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Risk Seviyeleri</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-red-600 mr-2"></div>
-                      <span>Çok Yüksek Risk (15-25): Derhal önlem alınmalı</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-red-500 mr-2"></div>
-                      <span>Yüksek Risk (10-14): Kısa vadede önlem alınmalı</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-yellow-500 mr-2"></div>
-                      <span>Orta Risk (5-9): Planlı önlemler alınmalı</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-green-500 mr-2"></div>
-                      <span>Düşük Risk (3-4): İzlenmeli</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-green-100 mr-2"></div>
-                      <span>Çok Düşük Risk (1-2): Önlem gerekmez</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-800 mb-2">Risk Ortalamaları</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">İlk Risk Ortalaması:</p>
-                        <p className="text-xl font-bold text-amber-600">{averageRiskScores.initial}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Son Risk Ortalaması:</p>
-                        <p className="text-xl font-bold text-green-600">{averageRiskScores.final}</p>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">Risk Azalma Oranı:</p>
-                      <p className="text-xl font-bold text-blue-600">
-                        {averageRiskScores.initial > 0 
-                          ? `%${Math.round((1 - averageRiskScores.final / averageRiskScores.initial) * 100)}`
-                          : '%0'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report Preview */}
-      {activeTab === 'preview' && (
+    <div className="min-h-screen bg-gray-50 text-gray-800 pb-20 font-sans">
+      
+      {/* HEADER */}
+      <header className="bg-white border-b sticky top-0 z-30 px-6 py-4 shadow-sm flex justify-between items-center">
         <div>
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <span className="text-gray-700">
-                  Sayfa {currentPage} / {totalPages}
-                </span>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md disabled:opacity-50"
-                  >
-                    Önceki
-                  </button>
-                  <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md disabled:opacity-50"
-                  >
-                    Sonraki
-                  </button>
-                </div>
-              </div>
-              <div className="flex space-x-4">
-                <button
-                  onClick={generatePDF}
-                  disabled={loading}
-                  className="flex items-center bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors disabled:bg-gray-400"
-                >
-                  {loading ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      İşleniyor...
-                    </span>
-                  ) : (
-                    <>
-                      <Download className="mr-2" size={18} />
-                      PDF İndir
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={generateJPEG}
-                  disabled={loading}
-                  className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                >
-                  {loading ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      İşleniyor...
-                    </span>
-                  ) : (
-                    <>
-                      <Image className="mr-2" size={18} />
-                      JPEG İndir
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <AlertTriangle className="text-amber-600"/> Risk Değerlendirme Modülü
+            </h1>
+            <p className="text-xs text-gray-500 hidden md:block">ISO ve BRC standartlarına uygun tehlike analizi ve risk yönetimi.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+             {autoSaved && <span className="text-xs text-green-600 font-medium animate-pulse flex items-center"><Save size={14} className="mr-1"/> Kaydedildi</span>}
+             
+             <div className="flex bg-gray-100 p-1 rounded-lg lg:hidden">
+                <button onClick={() => setActiveTab('edit')} className={`px-3 py-1 text-sm rounded-md transition-all ${activeTab === 'edit' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Düzenle</button>
+                <button onClick={() => setActiveTab('preview')} className={`px-3 py-1 text-sm rounded-md transition-all ${activeTab === 'preview' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Önizle</button>
+             </div>
 
-          {/* Report Preview */}
-          <div 
-            ref={reportRef}
-            className="bg-white border border-gray-200 rounded-lg p-4 max-w-[297mm] mx-auto"
-          >
-            {/* Page 1: Cover and General Information */}
-            <div className="report-page" style={{ width: '297mm', height: '210mm', position: 'relative', pageBreakAfter: 'always' }}>
-              <div className="p-8 h-full flex flex-col">
-                {/* Header with Logo */}
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">TEHLİKE BELİRLEME VE RİSK DEĞERLENDİRME RAPORU</h1>
-                    <p className="text-gray-600 mt-2">Zararlı Mücadelesi Risk Değerlendirmesi</p>
-                  </div>
-                  {reportInfo.companyLogo && (
-                    <img src={reportInfo.companyLogo} alt="Company Logo" className="h-16 object-contain" />
-                  )}
-                </div>
+             <button
+                onClick={generatePDF}
+                disabled={loading}
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-black transition-colors flex items-center space-x-2 disabled:opacity-50 text-sm font-medium"
+            >
+                {loading ? <RefreshCw className="animate-spin h-4 w-4"/> : <Download className="h-4 w-4" />}
+                <span className="hidden sm:inline">PDF İndir</span>
+            </button>
+        </div>
+      </header>
 
-                {/* Company Information */}
-                <div className="grid grid-cols-2 gap-8 mb-8">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Şirket Bilgileri</h2>
-                    <div className="space-y-3">
-                      <div className="flex">
-                        <span className="font-medium w-32">Şirket Adı:</span>
-                        <span>{reportInfo.companyName || 'Belirtilmemiş'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-medium w-32">Adres:</span>
-                        <span>{reportInfo.companyAddress || 'Belirtilmemiş'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-medium w-32">Departman:</span>
-                        <span>{reportInfo.department || 'Tüm Tesis'}</span>
-                      </div>
-                    </div>
-                  </div>
+      {success && (
+        <div className="fixed top-24 right-6 z-50 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg shadow-lg flex items-center animate-in slide-in-from-right">
+            <CheckCircle className="h-5 w-5 mr-2" /> {success}
+        </div>
+      )}
+
+      <main className="container mx-auto px-4 py-6 grid lg:grid-cols-12 gap-8">
+        
+        {/* SOL PANEL: EDİTÖR */}
+        <div className={`lg:col-span-5 space-y-6 ${activeTab === 'preview' ? 'hidden lg:block' : ''}`}>
+           
+           {/* Firma Bilgileri */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+             <h2 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Building size={18}/> Firma Bilgileri</h2>
+             <div className="grid grid-cols-2 gap-3">
+                <input placeholder="Firma Adı" value={reportInfo.companyName} onChange={e => setReportInfo({...reportInfo, companyName: e.target.value})} className="border rounded p-2 text-sm w-full"/>
+                <input placeholder="Değerlendiren" value={reportInfo.assessor} onChange={e => setReportInfo({...reportInfo, assessor: e.target.value})} className="border rounded p-2 text-sm w-full"/>
+                <input type="date" value={reportInfo.assessmentDate} onChange={e => setReportInfo({...reportInfo, assessmentDate: e.target.value})} className="border rounded p-2 text-sm w-full"/>
+                <label className="cursor-pointer border rounded p-2 text-sm w-full bg-gray-50 flex items-center justify-center hover:bg-gray-100">
+                    <ImageIcon size={14} className="mr-2"/> {reportInfo.companyLogo ? 'Logo Değiştir' : 'Logo Yükle'}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e)} />
+                </label>
+             </div>
+           </div>
+
+           {/* Risk Listesi */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                  <h2 className="font-bold text-gray-700 flex items-center gap-2"><FileText size={18}/> Riskler ({hazards.length})</h2>
                   
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Değerlendirme Bilgileri</h2>
-                    <div className="space-y-3">
-                      <div className="flex">
-                        <span className="font-medium w-32">Değerlendiren:</span>
-                        <span>{reportInfo.assessor || 'Belirtilmemiş'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-medium w-32">Tarih:</span>
-                        <span>{new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR')}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-medium w-32">Gözden Geçirme:</span>
-                        <span>{new Date(reportInfo.reviewDate).toLocaleDateString('tr-TR')}</span>
-                      </div>
-                    </div>
+                  <div className="relative" ref={predefinedListRef}>
+                      <button onClick={() => setShowPredefinedList(!showPredefinedList)} className="bg-white border px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50 flex items-center gap-1">
+                          + Şablon <ChevronDown size={14}/>
+                      </button>
+                      <button onClick={() => addHazard()} className="ml-2 bg-amber-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-amber-700">
+                          + Yeni
+                      </button>
+
+                      {showPredefinedList && (
+                          <div className="absolute right-0 top-full mt-2 w-72 bg-white shadow-xl rounded-lg border z-20 overflow-hidden max-h-80 flex flex-col">
+                              <div className="p-2 border-b bg-gray-50 sticky top-0">
+                                  <input 
+                                    autoFocus
+                                    placeholder="Risk ara..." 
+                                    className="w-full text-xs border rounded p-1"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                  />
+                              </div>
+                              <div className="overflow-y-auto">
+                                  {PREDEFINED_HAZARDS.filter(h => h.hazard.toLowerCase().includes(searchTerm.toLowerCase())).map((t, i) => (
+                                      <button key={i} onClick={() => addHazard(t)} className="w-full text-left p-3 hover:bg-blue-50 border-b last:border-0 group">
+                                          <div className="font-bold text-xs text-gray-800">{t.hazard}</div>
+                                          <div className="text-[10px] text-gray-500">{t.category}</div>
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
                   </div>
+              </div>
+
+              <div className="max-h-[600px] overflow-y-auto bg-gray-50 p-3 space-y-3">
+                  {hazards.map((hazard, index) => (
+                      <div key={hazard.id} className="bg-white p-3 rounded-lg border shadow-sm group hover:border-amber-400 transition-colors relative">
+                          <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                  <span className="bg-gray-800 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                      hazard.status === 'open' ? 'bg-red-100 text-red-700' : 
+                                      hazard.status === 'in-progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                  }`}>
+                                      {hazard.status === 'open' ? 'Açık' : hazard.status === 'in-progress' ? 'Sürüyor' : 'Kapalı'}
+                                  </span>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-white pl-2">
+                                  <button onClick={() => moveHazard(index, 'up')} className="p-1 hover:bg-gray-100 rounded text-gray-500"><ArrowUp size={14}/></button>
+                                  <button onClick={() => moveHazard(index, 'down')} className="p-1 hover:bg-gray-100 rounded text-gray-500"><ArrowDown size={14}/></button>
+                                  <button onClick={() => duplicateHazard(hazard)} className="p-1 hover:bg-blue-50 rounded text-blue-600"><Copy size={14}/></button>
+                                  <button onClick={() => deleteHazard(hazard.id)} className="p-1 hover:bg-red-50 rounded text-red-600"><Trash2 size={14}/></button>
+                              </div>
+                          </div>
+                          
+                          <div className="cursor-pointer" onClick={() => { setCurrentHazard(hazard); setShowHazardForm(true); }}>
+                              <h3 className="font-bold text-gray-800 text-sm mb-1">{hazard.hazard}</h3>
+                              <p className="text-xs text-gray-500 line-clamp-2 mb-2">{hazard.consequences}</p>
+                              
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed">
+                                  <div className="flex items-center gap-2">
+                                      <div className={`text-[10px] px-2 py-0.5 rounded font-bold ${getRiskColor(hazard.riskScore)}`}>
+                                          Risk: {hazard.riskScore}
+                                      </div>
+                                      <div className="text-[10px] text-gray-400">
+                                          Hedef: {getRiskColor(hazard.newRiskScore).includes('green') ? 'Düşük' : 'Orta'}
+                                      </div>
+                                  </div>
+                                  {hazard.evidencePhoto && <Camera size={14} className="text-blue-500"/>}
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+                  {hazards.length === 0 && <div className="text-center text-gray-400 py-4 text-xs">Risk kaydı bulunamadı.</div>}
+              </div>
+           </div>
+
+           {/* İmzalar */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+               <h3 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2"><PenTool size={16}/> Dijital İmzalar</h3>
+               <div className="grid grid-cols-2 gap-4">
+                   {['assessor', 'client'].map((role) => (
+                       <div key={role} className="border border-dashed rounded p-3 text-center bg-gray-50">
+                           <span className="text-xs block font-bold text-gray-500 mb-1">{role === 'assessor' ? 'Denetçi' : 'Müşteri'}</span>
+                           {signatures[role as keyof typeof signatures].signatureImage ? (
+                               <div className="relative group">
+                                   <img src={signatures[role as keyof typeof signatures].signatureImage!} className="h-10 mx-auto object-contain" alt="İmza" />
+                                   <button onClick={() => setSignatures(p => ({...p, [role]: {...p[role as keyof typeof signatures], signatureImage: null}}))} className="absolute -top-2 -right-2 text-red-500 bg-white rounded-full hidden group-hover:block"><X size={12}/></button>
+                               </div>
+                           ) : (
+                               <label className="text-xs text-blue-600 cursor-pointer hover:underline block py-2">Yükle <input type="file" onChange={(e) => handleSignatureUpload(role as any, e)} className="hidden"/></label>
+                           )}
+                           <input 
+                                value={signatures[role as keyof typeof signatures].name} 
+                                onChange={e => setSignatures(p => ({...p, [role]: {...p[role as keyof typeof signatures], name: e.target.value}}))} 
+                                placeholder="Ad Soyad" 
+                                className="w-full text-xs text-center mt-1 bg-transparent border-b outline-none focus:border-blue-500"
+                           />
+                       </div>
+                   ))}
+               </div>
+           </div>
+
+        </div>
+
+        {/* SAĞ PANEL: ÖNİZLEME */}
+        <div className={`lg:col-span-7 ${activeTab === 'edit' ? 'hidden lg:block' : ''}`}>
+             <div className="sticky top-24">
+                <div className="bg-gray-800 text-white text-xs px-4 py-2 rounded-t-lg flex justify-between items-center">
+                    <span>Rapor Önizleme (A4 Yatay)</span>
+                    <span>{hazards.length} Kayıt</span>
                 </div>
+                
+                <div className="overflow-auto bg-gray-500/10 p-4 rounded-b-lg border border-gray-300 h-[calc(100vh-160px)] custom-scrollbar">
+                    <div ref={reportRef}>
+                        {/* SAYFA 1: KAPAK VE ÖZET */}
+                        <div className="report-page bg-white shadow-lg mx-auto mb-8 relative p-[15mm]" style={{ width: '297mm', height: '210mm' }}>
+                            {/* Header */}
+                            <div className="flex justify-between items-end border-b-2 border-gray-800 pb-4 mb-6">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">RİSK ANALİZ RAPORU</h1>
+                                    <p className="text-sm text-gray-500 mt-1 uppercase tracking-wider">TEHLİKE BELİRLEME VE RİSK DEĞERLENDİRME</p>
+                                </div>
+                                {reportInfo.companyLogo ? (
+                                    <img src={reportInfo.companyLogo} className="h-16 object-contain" alt="Logo" />
+                                ) : (
+                                    <div className="text-xl font-bold text-gray-300">{reportInfo.companyName}</div>
+                                )}
+                            </div>
 
-                {/* Visit Plan */}
-                {reportInfo.visitFrequency && (
-                  <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Ziyaret Planı</h2>
-                    <div className="bg-gray-50 rounded-lg p-6">
-                      <div className="grid grid-cols-3 gap-6">
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">Ziyaret Sıklığı</p>
-                          <p className="text-2xl font-bold text-blue-600">{visitPlan.label}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">Yaz Dönemi Ziyaret</p>
-                          <p className="text-2xl font-bold text-amber-600">{visitPlan.summer} Ziyaret</p>
-                          <p className="text-xs text-gray-500 mt-1">(Nisan - Eylül)</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">Kış Dönemi Ziyaret</p>
-                          <p className="text-2xl font-bold text-blue-600">{visitPlan.winter} Ziyaret</p>
-                          <p className="text-xs text-gray-500 mt-1">(Ekim - Mart)</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-semibold">Toplam Yıllık Ziyaret:</span> {visitPlan.summer + visitPlan.winter} Ziyaret
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-2 gap-8 mb-8">
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Firma:</span> <span>{reportInfo.companyName}</span></div>
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Adres:</span> <span className="truncate">{reportInfo.companyAddress || '-'}</span></div>
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Departman:</span> <span>{reportInfo.department}</span></div>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Değerlendiren:</span> <span>{reportInfo.assessor}</span></div>
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Tarih:</span> <span>{new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR')}</span></div>
+                                    <div className="flex justify-between border-b pb-1"><span className="font-bold text-gray-600">Gözden Geçirme:</span> <span>{new Date(reportInfo.reviewDate).toLocaleDateString('tr-TR')}</span></div>
+                                </div>
+                            </div>
 
-                {/* Risk Matrix */}
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Risk Matrisi</h2>
-                  
-                  <div className="grid grid-cols-2 gap-8">
-                    <div>
-                      <table className="min-w-full border border-gray-300">
-                        <thead>
-                          <tr>
-                            <th className="border border-gray-300 p-2 bg-gray-100"></th>
-                            <th colSpan={5} className="border border-gray-300 p-2 bg-gray-100 text-center">Şiddet (S)</th>
-                          </tr>
-                          <tr>
-                            <th className="border border-gray-300 p-2 bg-gray-100">Olasılık (O)</th>
-                            <th className="border border-gray-300 p-2 bg-gray-100 text-center">1</th>
-                            <th className="border border-gray-300 p-2 bg-gray-100 text-center">2</th>
-                            <th className="border border-gray-300 p-2 bg-gray-100 text-center">3</th>
-                            <th className="border border-gray-300 p-2 bg-gray-100 text-center">4</th>
-                            <th className="border border-gray-300 p-2 bg-gray-100 text-center">5</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[5, 4, 3, 2, 1].map(likelihood => (
-                            <tr key={likelihood}>
-                              <td className="border border-gray-300 p-2 bg-gray-100 text-center font-medium">{likelihood}</td>
-                              {[1, 2, 3, 4, 5].map(severity => {
-                                const score = likelihood * severity;
-                                let bgColor = 'bg-green-100 text-green-800';
-                                if (score >= 15) bgColor = 'bg-red-600 text-white';
-                                else if (score >= 10) bgColor = 'bg-red-500 text-white';
-                                else if (score >= 5) bgColor = 'bg-yellow-500 text-white';
-                                else if (score >= 3) bgColor = 'bg-green-500 text-white';
+                            {/* Risk Matrix Visualization */}
+                            <div className="flex gap-8 mb-4">
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-gray-700 text-sm mb-2 border-b pb-1">Risk Matrisi (L x S)</h3>
+                                    <div className="grid grid-cols-6 text-[10px] gap-0.5">
+                                        <div className="col-span-1 row-span-6 flex items-center justify-center font-bold -rotate-90 text-gray-500">OLASILIK</div>
+                                        {/* Header Row */}
+                                        <div className="bg-gray-100"></div>
+                                        {[1,2,3,4,5].map(i => <div key={i} className="text-center font-bold bg-gray-100 py-1">{i}</div>)}
+                                        
+                                        {[5,4,3,2,1].map(row => (
+                                            <React.Fragment key={row}>
+                                                <div className="font-bold bg-gray-100 flex items-center justify-center">{row}</div>
+                                                {[1,2,3,4,5].map(col => {
+                                                    const val = row * col;
+                                                    return (
+                                                        <div key={col} className={`flex items-center justify-center py-1 font-bold border border-white ${getRiskColor(val)}`}>
+                                                            {val}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </React.Fragment>
+                                        ))}
+                                        <div className="col-span-6 text-center font-bold text-gray-500 mt-1">ŞİDDET (ETKİ)</div>
+                                    </div>
+                                </div>
                                 
-                                return (
-                                  <td key={severity} className={`border border-gray-300 p-2 text-center ${bgColor}`}>
-                                    {score}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    <div>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-red-600 mr-2"></div>
-                          <span>Çok Yüksek Risk (15-25): Derhal önlem alınmalı</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-red-500 mr-2"></div>
-                          <span>Yüksek Risk (10-14): Kısa vadede önlem alınmalı</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-yellow-500 mr-2"></div>
-                          <span>Orta Risk (5-9): Planlı önlemler alınmalı</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-green-500 mr-2"></div>
-                          <span>Düşük Risk (3-4): İzlenmeli</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-green-100 mr-2"></div>
-                          <span>Çok Düşük Risk (1-2): Önlem gerekmez</span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-semibold text-gray-800 mb-2">Risk Ortalamaları</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-600">İlk Risk Ortalaması:</p>
-                            <p className="text-xl font-bold text-amber-600">{averageRiskScores.initial}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Son Risk Ortalaması:</p>
-                            <p className="text-xl font-bold text-green-600">{averageRiskScores.final}</p>
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-600">Risk Azalma Oranı:</p>
-                          <p className="text-xl font-bold text-blue-600">
-                            {averageRiskScores.initial > 0 
-                              ? `%${Math.round((1 - averageRiskScores.final / averageRiskScores.initial) * 100)}`
-                              : '%0'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-auto border-t pt-4 text-sm text-gray-500">
-                  <p>{reportInfo.footerText}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Page 2: Hazards and Risks */}
-            <div className="report-page" style={{ width: '297mm', height: '210mm', position: 'relative', pageBreakAfter: 'always' }}>
-              <div className="p-8 h-full flex flex-col">
-                {/* Header with Logo */}
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">TEHLİKE BELİRLEME VE RİSK DEĞERLENDİRME RAPORU</h1>
-                    <p className="text-gray-600 text-sm">Şirket: {reportInfo.companyName || 'Belirtilmemiş'} | Tarih: {new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                  {reportInfo.companyLogo && (
-                    <img src={reportInfo.companyLogo} alt="Company Logo" className="h-12 object-contain" />
-                  )}
-                </div>
-
-                {/* Hazards Table */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Tehlike ve Risk Listesi</h2>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 text-sm">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 p-2 text-left">Tehlike</th>
-                          <th className="border border-gray-300 p-2 text-left">Kategori</th>
-                          <th className="border border-gray-300 p-2 text-left">Sonuçlar</th>
-                          <th className="border border-gray-300 p-2 text-left">Mevcut Kontroller</th>
-                          <th className="border border-gray-300 p-2 text-center">O</th>
-                          <th className="border border-gray-300 p-2 text-center">Ş</th>
-                          <th className="border border-gray-300 p-2 text-center">Risk</th>
-                          <th className="border border-gray-300 p-2 text-center">Seviye</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {hazards.map((hazard) => (
-                          <tr key={hazard.id}>
-                            <td className="border border-gray-300 p-2">{hazard.hazard}</td>
-                            <td className="border border-gray-300 p-2">{hazard.category}</td>
-                            <td className="border border-gray-300 p-2">{hazard.consequences}</td>
-                            <td className="border border-gray-300 p-2">{hazard.existingControls}</td>
-                            <td className="border border-gray-300 p-2 text-center">{hazard.likelihood}</td>
-                            <td className="border border-gray-300 p-2 text-center">{hazard.severity}</td>
-                            <td className="border border-gray-300 p-2 text-center">{hazard.riskScore}</td>
-                            <td className="border border-gray-300 p-2 text-center">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(hazard.riskLevel)}`}>
-                                {hazard.riskLevel}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Risk Distribution */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Risk Dağılımı</h2>
-                  
-                  <div className="grid grid-cols-2 gap-8">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-800 mb-3">İlk Risk Dağılımı</h3>
-                      <div className="space-y-2">
-                        {['Çok Yüksek', 'Yüksek', 'Orta', 'Düşük', 'Çok Düşük'].map(level => {
-                          const count = hazards.filter(h => h.riskLevel === level).length;
-                          const percentage = hazards.length > 0 ? Math.round((count / hazards.length) * 100) : 0;
-                          
-                          return (
-                            <div key={level} className="flex items-center">
-                              <div className={`w-6 h-6 ${getRiskLevelColor(level)} mr-2`}></div>
-                              <span className="w-24">{level}:</span>
-                              <div className="flex-1 bg-gray-200 rounded-full h-2.5 mr-2">
-                                <div 
-                                  className={`h-2.5 rounded-full ${getRiskLevelColor(level)}`} 
-                                  style={{ width: `${percentage}%` }}
-                                ></div>
-                              </div>
-                              <span>{count} ({percentage}%)</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-800 mb-3">Son Risk Dağılımı</h3>
-                      <div className="space-y-2">
-                        {['Çok Yüksek', 'Yüksek', 'Orta', 'Düşük', 'Çok Düşük'].map(level => {
-                          const count = hazards.filter(h => h.newRiskLevel === level).length;
-                          const percentage = hazards.length > 0 ? Math.round((count / hazards.length) * 100) : 0;
-                          
-                          return (
-                            <div key={level} className="flex items-center">
-                              <div className={`w-6 h-6 ${getRiskLevelColor(level)} mr-2`}></div>
-                              <span className="w-24">{level}:</span>
-                              <div className="flex-1 bg-gray-200 rounded-full h-2.5 mr-2">
-                                <div 
-                                  className={`h-2.5 rounded-full ${getRiskLevelColor(level)}`} 
-                                  style={{ width: `${percentage}%` }}
-                                ></div>
-                              </div>
-                              <span>{count} ({percentage}%)</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-auto border-t pt-4 text-sm text-gray-500">
-                  <p>{reportInfo.footerText}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Page 3: Control Measures */}
-            <div className="report-page" style={{ width: '297mm', height: '210mm', position: 'relative', pageBreakAfter: 'always' }}>
-              <div className="p-8 h-full flex flex-col">
-                {/* Header with Logo */}
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">TEHLİKE BELİRLEME VE RİSK DEĞERLENDİRME RAPORU</h1>
-                    <p className="text-gray-600 text-sm">Şirket: {reportInfo.companyName || 'Belirtilmemiş'} | Tarih: {new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                  {reportInfo.companyLogo && (
-                    <img src={reportInfo.companyLogo} alt="Company Logo" className="h-12 object-contain" />
-                  )}
-                </div>
-
-                {/* Control Measures Table */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Kontrol Önlemleri ve Eylem Planı</h2>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 text-sm">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 p-2 text-left">Tehlike</th>
-                          <th className="border border-gray-300 p-2 text-left">Önerilen Kontroller</th>
-                          <th className="border border-gray-300 p-2 text-left">Sorumlu Kişi</th>
-                          <th className="border border-gray-300 p-2 text-center">Hedef Tarih</th>
-                          <th className="border border-gray-300 p-2 text-center">Durum</th>
-                          <th className="border border-gray-300 p-2 text-center">Son Risk</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {hazards.map((hazard) => (
-                          <tr key={hazard.id}>
-                            <td className="border border-gray-300 p-2">{hazard.hazard}</td>
-                            <td className="border border-gray-300 p-2">{hazard.recommendedControls}</td>
-                            <td className="border border-gray-300 p-2">{hazard.responsiblePerson}</td>
-                            <td className="border border-gray-300 p-2 text-center">{new Date(hazard.targetDate).toLocaleDateString('tr-TR')}</td>
-                            <td className="border border-gray-300 p-2 text-center">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(hazard.status)}`}>
-                                {getStatusText(hazard.status)}
-                              </span>
-                            </td>
-                            <td className="border border-gray-300 p-2 text-center">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(hazard.newRiskLevel)}`}>
-                                {hazard.newRiskScore} - {hazard.newRiskLevel}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Risk Reduction Summary */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Risk Azaltma Özeti</h2>
-                  
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-lg font-medium text-gray-800 mb-3">Risk Azaltma Analizi</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm text-gray-600">İlk Risk Ortalaması:</p>
-                          <p className="text-xl font-bold text-amber-600">{averageRiskScores.initial}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Son Risk Ortalaması:</p>
-                          <p className="text-xl font-bold text-green-600">{averageRiskScores.final}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Risk Azalma Oranı:</p>
-                          <p className="text-xl font-bold text-blue-600">
-                            {averageRiskScores.initial > 0 
-                              ? `%${Math.round((1 - averageRiskScores.final / averageRiskScores.initial) * 100)}`
-                              : '%0'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-800 mb-3">Sonuç ve Öneriler</h3>
-                      <p className="text-gray-700">
-                        Bu risk değerlendirmesi sonucunda, tespit edilen tehlikelere yönelik kontrol önlemleri uygulandığında 
-                        risk seviyesinde {averageRiskScores.initial > 0 
-                          ? `%${Math.round((1 - averageRiskScores.final / averageRiskScores.initial) * 100)}`
-                          : '%0'} oranında bir azalma sağlanacağı öngörülmektedir. 
-                        Önerilen kontrol önlemlerinin belirtilen tarihlerde uygulanması ve düzenli olarak gözden geçirilmesi önemlidir.
-                      </p>
-                      <p className="text-gray-700 mt-4">
-                        Bu risk değerlendirmesi raporu {new Date(reportInfo.reviewDate).toLocaleDateString('tr-TR')} tarihinde 
-                        gözden geçirilecektir. Tesis koşullarında önemli değişiklikler olması durumunda daha erken bir tarihte 
-                        revize edilmelidir.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-auto border-t pt-4 text-sm text-gray-500">
-                  <p>{reportInfo.footerText}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Page 4: Detailed Hazard Analysis */}
-            {hazards.length > 0 && (
-              <div className="report-page" style={{ width: '297mm', height: '210mm', position: 'relative' }}>
-                <div className="p-8 h-full flex flex-col">
-                  {/* Header with Logo */}
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h1 className="text-2xl font-bold text-gray-900">TEHLİKE BELİRLEME VE RİSK DEĞERLENDİRME RAPORU</h1>
-                      <p className="text-gray-600 text-sm">Şirket: {reportInfo.companyName || 'Belirtilmemiş'} | Tarih: {new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR')}</p>
-                    </div>
-                    {reportInfo.companyLogo && (
-                      <img src={reportInfo.companyLogo} alt="Company Logo" className="h-12 object-contain" />
-                    )}
-                  </div>
-
-                  {/* Detailed Hazard Analysis */}
-                  <div className="mb-6">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Detaylı Tehlike Analizi</h2>
-                    
-                    <div className="space-y-6">
-                      {hazards.map((hazard) => (
-                        <div key={hazard.id} className="p-4 border border-gray-200 rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold text-gray-800">{hazard.hazard}</h3>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(hazard.status)}`}>
-                              {getStatusText(hazard.status)}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 mt-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">Kategori:</p>
-                              <p className="text-sm text-gray-600">{hazard.category}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">Sonuçlar:</p>
-                              <p className="text-sm text-gray-600">{hazard.consequences}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">Mevcut Kontroller:</p>
-                              <p className="text-sm text-gray-600">{hazard.existingControls}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">Önerilen Kontroller:</p>
-                              <p className="text-sm text-gray-600">{hazard.recommendedControls}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 mt-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">İlk Risk Değerlendirmesi:</p>
-                              <div className="flex items-center mt-1">
-                                <div className="flex items-center space-x-2 mr-4">
-                                  <span className="text-sm text-gray-600">O: {hazard.likelihood}</span>
-                                  <span className="text-sm text-gray-600">Ş: {hazard.severity}</span>
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-gray-700 text-sm mb-2 border-b pb-1">Risk Dağılımı</h3>
+                                    <div className="space-y-2 text-xs">
+                                        {['Çok Yüksek', 'Yüksek', 'Orta', 'Düşük', 'Çok Düşük'].map(level => {
+                                            const count = hazards.filter(h => h.riskLevel === level).length;
+                                            const percent = hazards.length ? Math.round((count/hazards.length)*100) : 0;
+                                            const colorClass = level === 'Çok Yüksek' ? 'bg-red-600' : level === 'Yüksek' ? 'bg-orange-500' : level === 'Orta' ? 'bg-yellow-400' : 'bg-green-500';
+                                            
+                                            return (
+                                                <div key={level} className="flex items-center gap-2">
+                                                    <div className={`w-3 h-3 rounded-full ${colorClass}`}></div>
+                                                    <div className="w-24">{level}</div>
+                                                    <div className="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${colorClass}`} style={{width: `${percent}%`}}></div>
+                                                    </div>
+                                                    <div className="w-8 text-right font-bold">{count}</div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRiskLevelColor(hazard.riskLevel)}`}>
-                                  {hazard.riskScore} - {hazard.riskLevel}
-                                </span>
-                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">Son Risk Değerlendirmesi:</p>
-                              <div className="flex items-center mt-1">
-                                <div className="flex items-center space-x-2 mr-4">
-                                  <span className="text-sm text-gray-600">O: {hazard.newLikelihood}</span>
-                                  <span className="text-sm text-gray-600">Ş: {hazard.newSeverity}</span>
-                                </div>
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRiskLevelColor(hazard.newRiskLevel)}`}>
-                                  {hazard.newRiskScore} - {hazard.newRiskLevel}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-4">
-                            <p className="text-sm font-medium text-gray-700">Eylem Planı:</p>
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center space-x-4">
-                                <span className="text-sm text-gray-600">Sorumlu: {hazard.responsiblePerson}</span>
-                                <span className="text-sm text-gray-600">Hedef Tarih: {new Date(hazard.targetDate).toLocaleDateString('tr-TR')}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Footer */}
-                  <div className="mt-auto border-t pt-4 text-sm text-gray-500">
-                    <p>{reportInfo.footerText}</p>
-                  </div>
+                            {/* Signatures */}
+                            <div className="absolute bottom-[15mm] left-[15mm] right-[15mm] flex justify-between">
+                                <div className="text-center w-1/3">
+                                    <div className="h-16 border-b border-gray-400 flex items-end justify-center pb-1">
+                                        {signatures.assessor.signatureImage && <img src={signatures.assessor.signatureImage} className="max-h-full"/>}
+                                    </div>
+                                    <p className="font-bold text-sm mt-1">{signatures.assessor.name}</p>
+                                    <p className="text-xs text-gray-500">{signatures.assessor.title}</p>
+                                </div>
+                                <div className="text-center w-1/3">
+                                    <div className="h-16 border-b border-gray-400 flex items-end justify-center pb-1">
+                                        {signatures.client.signatureImage && <img src={signatures.client.signatureImage} className="max-h-full"/>}
+                                    </div>
+                                    <p className="font-bold text-sm mt-1">{signatures.client.name}</p>
+                                    <p className="text-xs text-gray-500">{signatures.client.title}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SAYFA 2+: TABLO (Sayfa başı 4-5 kayıt sığar) */}
+                        {/* Basitlik için tüm tabloyu tek sayfada gösterip taşanı jsPDF ile bölmeyeceğiz, CSS ile sayfa sonu vereceğiz */}
+                        <div className="report-page bg-white shadow-lg mx-auto relative p-[15mm] min-h-[210mm]" style={{ width: '297mm' }}>
+                             <h3 className="font-bold text-gray-800 text-lg mb-4 border-b pb-2">DETAYLI RİSK ANALİZ TABLOSU</h3>
+                             <table className="w-full text-xs border-collapse">
+                                 <thead>
+                                     <tr className="bg-gray-800 text-white">
+                                         <th className="p-2 border border-gray-600 w-8">#</th>
+                                         <th className="p-2 border border-gray-600 w-1/5">Tehlike & Kategori</th>
+                                         <th className="p-2 border border-gray-600 w-1/5">Risk & Sonuç</th>
+                                         <th className="p-2 border border-gray-600 text-center">İlk R</th>
+                                         <th className="p-2 border border-gray-600 w-1/4">Kontrol Önlemleri</th>
+                                         <th className="p-2 border border-gray-600 text-center">Son R</th>
+                                         <th className="p-2 border border-gray-600 w-24 text-center">Durum</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>
+                                     {hazards.map((h, i) => (
+                                         <tr key={h.id} className="break-inside-avoid">
+                                             <td className="p-2 border border-gray-300 text-center align-top font-bold">{i+1}</td>
+                                             <td className="p-2 border border-gray-300 align-top">
+                                                 <div className="font-bold text-gray-900">{h.hazard}</div>
+                                                 <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600 mt-1">{h.category}</span>
+                                                 {h.evidencePhoto && (
+                                                     <div className="mt-2">
+                                                         <img src={h.evidencePhoto} className="h-16 border rounded object-cover" alt="Kanıt"/>
+                                                     </div>
+                                                 )}
+                                             </td>
+                                             <td className="p-2 border border-gray-300 align-top text-gray-600">
+                                                 {h.consequences}
+                                             </td>
+                                             <td className="p-2 border border-gray-300 text-center align-top">
+                                                 <div className="font-bold">{h.likelihood} x {h.severity}</div>
+                                                 <div className={`mt-1 text-[10px] font-bold px-1 rounded text-white ${getRiskColor(h.riskScore).split(' ')[0]}`}>{h.riskScore}</div>
+                                             </td>
+                                             <td className="p-2 border border-gray-300 align-top">
+                                                 <div className="mb-1"><span className="font-bold text-[10px] text-gray-500">MEVCUT:</span> {h.existingControls || '-'}</div>
+                                                 <div><span className="font-bold text-[10px] text-blue-600">ÖNERİLEN:</span> {h.recommendedControls}</div>
+                                                 <div className="mt-1 text-[10px] text-gray-500 italic">Sorumlu: {h.responsiblePerson} | Tarih: {new Date(h.targetDate).toLocaleDateString('tr-TR')}</div>
+                                             </td>
+                                             <td className="p-2 border border-gray-300 text-center align-top">
+                                                 <div className="font-bold">{h.newLikelihood} x {h.newSeverity}</div>
+                                                 <div className={`mt-1 text-[10px] font-bold px-1 rounded ${getRiskColor(h.newRiskScore).includes('green') ? 'bg-green-500 text-white' : 'bg-yellow-400 text-black'}`}>{h.newRiskScore}</div>
+                                             </td>
+                                             <td className="p-2 border border-gray-300 text-center align-top">
+                                                 <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                                                      h.status === 'open' ? 'bg-red-100 text-red-700' : 
+                                                      h.status === 'in-progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                                 }`}>
+                                                     {h.status === 'open' ? 'Açık' : h.status === 'in-progress' ? 'Sürüyor' : 'Kapalı'}
+                                                 </span>
+                                             </td>
+                                         </tr>
+                                     ))}
+                                 </tbody>
+                             </table>
+                             <div className="mt-4 text-[10px] text-gray-400 text-center">Bu rapor {reportInfo.companyName} tarafından hazırlanmıştır. İzinsiz çoğaltılamaz.</div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            )}
-          </div>
+             </div>
         </div>
-      )}
+      </main>
 
-      {/* Hazard Form Modal */}
+      {/* MODAL: HAZARD FORM */}
       {showHazardForm && currentHazard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {currentHazard.id === Date.now().toString() ? 'Yeni Tehlike Ekle' : 'Tehlikeyi Düzenle'}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-bold text-gray-800">
+                {hazards.some(h => h.id === currentHazard.id) ? 'Tehlike Düzenle' : 'Yeni Tehlike'}
               </h2>
-              <button
-                onClick={() => {
-                  setShowHazardForm(false);
-                  setCurrentHazard(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
+              <button onClick={() => setShowHazardForm(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tehlike *
-                </label>
-                <input
-                  type="text"
-                  name="hazard"
-                  value={currentHazard.hazard}
-                  onChange={handleHazardChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="Tehlikeyi tanımlayın"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kategori *
-                </label>
-                <select
-                  name="category"
-                  value={currentHazard.category}
-                  onChange={handleHazardChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  required
-                >
-                  <option value="Biyolojik">Biyolojik</option>
-                  <option value="Kimyasal">Kimyasal</option>
-                  <option value="Fiziksel">Fiziksel</option>
-                  <option value="Ergonomik">Ergonomik</option>
-                  <option value="Psikososyal">Psikososyal</option>
-                </select>
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sonuçlar *
-                </label>
-                <textarea
-                  name="consequences"
-                  value={currentHazard.consequences}
-                  onChange={handleHazardChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="Tehlikenin olası sonuçlarını açıklayın"
-                  rows={2}
-                  required
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mevcut Kontroller
-                </label>
-                <textarea
-                  name="existingControls"
-                  value={currentHazard.existingControls}
-                  onChange={handleHazardChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="Mevcut kontrol önlemlerini açıklayın"
-                  rows={2}
-                />
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">İlk Risk Değerlendirmesi</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Olasılık (1-5) *
-                    </label>
-                    <select
-                      name="likelihood"
-                      value={currentHazard.likelihood}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    >
-                      <option value={1}>1 - Çok Düşük</option>
-                      <option value={2}>2 - Düşük</option>
-                      <option value={3}>3 - Orta</option>
-                      <option value={4}>4 - Yüksek</option>
-                      <option value={5}>5 - Çok Yüksek</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Şiddet (1-5) *
-                    </label>
-                    <select
-                      name="severity"
-                      value={currentHazard.severity}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    >
-                      <option value={1}>1 - Çok Düşük</option>
-                      <option value={2}>2 - Düşük</option>
-                      <option value={3}>3 - Orta</option>
-                      <option value={4}>4 - Yüksek</option>
-                      <option value={5}>5 - Çok Yüksek</option>
-                    </select>
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Risk Skoru
-                        </label>
-                        <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                          {currentHazard.riskScore}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Risk Seviyesi
-                        </label>
-                        <div className={`px-3 py-2 rounded-md font-medium ${getRiskLevelColor(currentHazard.riskLevel)}`}>
-                          {currentHazard.riskLevel}
-                        </div>
-                      </div>
+            <div className="p-6 overflow-y-auto space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Tehlike Tanımı</label>
+                        <input value={currentHazard.hazard} onChange={e => updateHazardField('hazard', e.target.value)} className="w-full border rounded p-2 text-sm focus:ring-2 ring-amber-500 outline-none" placeholder="Örn: Kemirgen Girişi"/>
                     </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Kontrol Önlemleri</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Önerilen Kontroller *
-                    </label>
-                    <textarea
-                      name="recommendedControls"
-                      value={currentHazard.recommendedControls}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="Önerilen kontrol önlemlerini açıklayın"
-                      rows={2}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sorumlu Kişi *
-                    </label>
-                    <input
-                      type="text"
-                      name="responsiblePerson"
-                      value={currentHazard.responsiblePerson}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="Sorumlu kişinin adı veya pozisyonu"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hedef Tarih *
-                      </label>
-                      <input
-                        type="date"
-                        name="targetDate"
-                        value={currentHazard.targetDate}
-                        onChange={handleHazardChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        required
-                      />
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Kategori</label>
+                        <select value={currentHazard.category} onChange={e => updateHazardField('category', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            {['Biyolojik', 'Kimyasal', 'Fiziksel', 'Ergonomik', 'Hijyen', 'Yapısal'].map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
                     </div>
-                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Durum *
-                      </label>
-                      <select
-                        name="status"
-                        value={currentHazard.status}
-                        onChange={handleHazardChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        required
-                      >
-                        <option value="open">Açık</option>
-                        <option value="in-progress">Devam Ediyor</option>
-                        <option value="completed">Tamamlandı</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Risk Değerlendirmesi</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Olasılık (1-5) *
-                    </label>
-                    <select
-                      name="newLikelihood"
-                      value={currentHazard.newLikelihood}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    >
-                      <option value={1}>1 - Çok Düşük</option>
-                      <option value={2}>2 - Düşük</option>
-                      <option value={3}>3 - Orta</option>
-                      <option value={4}>4 - Yüksek</option>
-                      <option value={5}>5 - Çok Yüksek</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Şiddet (1-5) *
-                    </label>
-                    <select
-                      name="newSeverity"
-                      value={currentHazard.newSeverity}
-                      onChange={handleHazardChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    >
-                      <option value={1}>1 - Çok Düşük</option>
-                      <option value={2}>2 - Düşük</option>
-                      <option value={3}>3 - Orta</option>
-                      <option value={4}>4 - Yüksek</option>
-                      <option value={5}>5 - Çok Yüksek</option>
-                    </select>
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Risk Skoru
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Kanıt Fotoğrafı</label>
+                        <label className="flex items-center justify-center border border-dashed rounded p-1.5 cursor-pointer hover:bg-gray-50 text-xs">
+                            <Camera size={14} className="mr-2"/> {currentHazard.evidencePhoto ? 'Değiştir' : 'Yükle'}
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, true)} />
                         </label>
-                        <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                          {currentHazard.newRiskScore}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Risk Seviyesi
-                        </label>
-                        <div className={`px-3 py-2 rounded-md font-medium ${getRiskLevelColor(currentHazard.newRiskLevel)}`}>
-                          {currentHazard.newRiskLevel}
-                        </div>
-                      </div>
+                        {currentHazard.evidencePhoto && <p className="text-[10px] text-green-600 mt-1 text-center">Fotoğraf eklendi</p>}
                     </div>
-                  </div>
                 </div>
-              </div>
+
+                <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Olası Sonuçlar</label>
+                    <textarea rows={2} value={currentHazard.consequences} onChange={e => updateHazardField('consequences', e.target.value)} className="w-full border rounded p-2 text-sm resize-none"/>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 bg-gray-50 p-3 rounded-lg border">
+                    <div>
+                        <h4 className="font-bold text-sm mb-2 text-red-600 border-b border-red-200 pb-1">Mevcut Durum (İlk Risk)</h4>
+                        <div className="space-y-2">
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <label className="text-[10px]">Olasılık (1-5)</label>
+                                    <input type="number" min="1" max="5" value={currentHazard.likelihood} onChange={e => updateHazardField('likelihood', e.target.value)} className="w-full border rounded p-1"/>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px]">Şiddet (1-5)</label>
+                                    <input type="number" min="1" max="5" value={currentHazard.severity} onChange={e => updateHazardField('severity', e.target.value)} className="w-full border rounded p-1"/>
+                                </div>
+                            </div>
+                            <div className={`text-center text-xs font-bold py-1 rounded ${getRiskColor(currentHazard.riskScore)}`}>
+                                Skor: {currentHazard.riskScore} ({currentHazard.riskLevel})
+                            </div>
+                            <textarea placeholder="Mevcut kontroller..." rows={2} value={currentHazard.existingControls} onChange={e => updateHazardField('existingControls', e.target.value)} className="w-full border rounded p-2 text-xs"/>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 className="font-bold text-sm mb-2 text-green-600 border-b border-green-200 pb-1">Hedeflenen (Son Risk)</h4>
+                        <div className="space-y-2">
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <label className="text-[10px]">Olasılık (1-5)</label>
+                                    <input type="number" min="1" max="5" value={currentHazard.newLikelihood} onChange={e => updateHazardField('newLikelihood', e.target.value)} className="w-full border rounded p-1"/>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px]">Şiddet (1-5)</label>
+                                    <input type="number" min="1" max="5" value={currentHazard.newSeverity} onChange={e => updateHazardField('newSeverity', e.target.value)} className="w-full border rounded p-1"/>
+                                </div>
+                            </div>
+                            <div className={`text-center text-xs font-bold py-1 rounded ${getRiskColor(currentHazard.newRiskScore)}`}>
+                                Skor: {currentHazard.newRiskScore} ({currentHazard.newRiskLevel})
+                            </div>
+                            <textarea placeholder="Önerilen kontroller..." rows={2} value={currentHazard.recommendedControls} onChange={e => updateHazardField('recommendedControls', e.target.value)} className="w-full border rounded p-2 text-xs"/>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-3">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Sorumlu</label>
+                        <input value={currentHazard.responsiblePerson} onChange={e => updateHazardField('responsiblePerson', e.target.value)} className="w-full border rounded p-2 text-sm"/>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Termin</label>
+                        <input type="date" value={currentHazard.targetDate} onChange={e => updateHazardField('targetDate', e.target.value)} className="w-full border rounded p-2 text-sm"/>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Durum</label>
+                        <select value={currentHazard.status} onChange={e => updateHazardField('status', e.target.value)} className="w-full border rounded p-2 text-sm">
+                            <option value="open">Açık</option>
+                            <option value="in-progress">Sürüyor</option>
+                            <option value="completed">Tamamlandı</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            
-            <div className="flex justify-end mt-8 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowHazardForm(false);
-                  setCurrentHazard(null);
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 mr-4"
-              >
-                İptal
-              </button>
-              <button
-                onClick={saveHazard}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
-              >
-                Kaydet
-              </button>
+
+            <div className="p-4 border-t bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                <button onClick={() => setShowHazardForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded text-sm">İptal</button>
+                <button onClick={saveCurrentHazard} className="px-6 py-2 bg-amber-600 text-white hover:bg-amber-700 rounded text-sm shadow-lg">Kaydet</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Help Section */}
-      {activeTab === 'report' && (
-        <div className="mt-12 bg-blue-50 rounded-lg p-6">
-          <div className="flex items-start space-x-4">
-            <Info className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
-            <div>
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">Tehlike Belirleme ve Risk Değerlendirme Hakkında</h3>
-              <p className="text-blue-700 mb-4">
-                Bu modül, zararlı mücadelesi ile ilgili tehlikeleri belirlemek, risk seviyelerini değerlendirmek ve kontrol önlemlerini planlamak için kullanılır.
-              </p>
-              <h4 className="font-semibold text-blue-800 mb-1">Nasıl Kullanılır?</h4>
-              <ul className="space-y-1 text-blue-700">
-                <li>1. Rapor bilgilerini doldurun (şirket adı, değerlendirme tarihi, vb.)</li>
-                <li>2. "Yeni Tehlike Ekle" butonuna tıklayarak tehlikeleri ekleyin</li>
-                <li>3. Her tehlike için ilk risk değerlendirmesini yapın (olasılık ve şiddet)</li>
-                <li>4. Önerilen kontrol önlemlerini, sorumlu kişileri ve hedef tarihleri belirleyin</li>
-                <li>5. Kontrol önlemleri sonrası son risk değerlendirmesini yapın</li>
-                <li>6. "Önizleme" sekmesine geçerek raporu kontrol edin</li>
-                <li>7. "PDF İndir" veya "JPEG İndir" butonlarıyla raporu dışa aktarın</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
