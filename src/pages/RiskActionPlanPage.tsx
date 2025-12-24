@@ -8,11 +8,9 @@ import {
   Download, 
   Save, 
   Building, 
-  User, 
   FileText,
   Camera,
   Trash2,
-  Mail,
   Phone,
   Image as ImageIcon,
   Target,
@@ -20,9 +18,9 @@ import {
   ArrowUp,
   ArrowDown,
   Copy,
-  MoreVertical,
   PenTool,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -58,8 +56,8 @@ const RiskActionPlanPage = () => {
   const [autoSaved, setAutoSaved] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showPredefinedActions, setShowPredefinedActions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // Hazır liste için arama
   
-  // Tab menüsü (Mobil/Desktop görünümü için)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Form Verileri
@@ -80,40 +78,131 @@ const RiskActionPlanPage = () => {
       client: { name: '', title: 'İşletme Yetkilisi', signatureImage: null }
   });
 
-  // Risk Listesi (Varsayılan boş veya örnek veri ile)
-  const [riskActions, setRiskActions] = useState<RiskAction[]>([
-    {
-      id: 'risk1',
-      risk: 'Dış alanda kemirgen aktivitesi',
-      detectionMethod: 'İstasyon kontrolü',
-      criticalLimit: 'Tüketim görülmesi',
-      responsible: 'SİSTEM İLAÇLAMA',
-      action: '1-Aktif yuvaların bulunması\n2-Yalıtım kontrolü',
-      documentation: 'Faaliyet raporu',
-      status: 'open',
-      evidencePhoto: null
-    }
-  ]);
+  // Risk Listesi (Başlangıçta boş veya sizin ilk verinizle başlayabilir)
+  const [riskActions, setRiskActions] = useState<RiskAction[]>([]);
 
-  // --- PREDEFINED DATA (Kısaltılmış Örnekler) ---
+  // --- SİZİN ORİJİNAL VERİ SETİNİZ (TAM LİSTE) ---
   const predefinedRiskActions = [
     {
       risk: 'Dış alanda kemirgen aktivitesi',
       detectionMethod: 'Kemirgen yem istesyonlarının ayda 2 kez kontrolü',
-      criticalLimit: 'Tüketim görülmesi',
+      criticalLimit: 'Aynı istasyonda ayda 2 kez yapılan kontrollerin herbirinde tüketim görülmesi',
       responsible: 'SİSTEM İLAÇLAMA',
-      action: '1-Aktif yuvaların bulunması ve kaynağın tespit edilmesi\n2-Üst üste 3 gün takip edilmesi\n3-Çevrenin yönetilmesi',
-      documentation: 'Faaliyet raporu'
+      action: '1-Aktif yuvaların bulunması ve kaynağın tespit edilmesi\n2-Üst üste 3 gün takip edillip, aktivite yoksa rutine geçilmesi\n3-Soruna bağlı olarak çevrenin yönetilmesi\n4-İstasyonlarda revizyona gidilmesi(aktif istasyonun sağına ve soluna ilave)\n5-İşletmeye en yakın noktalarda yalıtımın gözden geçirilmesi.',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
     },
     {
-      risk: 'İç alanda uçkun aktivitesi',
-      detectionMethod: 'LFT cihazı kontrolü',
-      criticalLimit: 'Cihazda >10 sinek',
+      risk: 'Dış alanda kemirgen istilası',
+      detectionMethod: 'Kemirgen yem istesyonlarının haftalık kontrolü ve GMP denetimi',
+      criticalLimit: "Bir kontrolde toplam yem istasyonlarının %25'inde tüketim tespit edilmesi",
       responsible: 'SİSTEM İLAÇLAMA',
-      action: '1-Giriş noktalarının yalıtımı\n2-Cihaz lambalarının değişimi\n3-Kapıların kapalı tutulması',
-      documentation: 'Risk analiz raporu'
+      action: '1-Sorunun kaynağının tespiti\n2-Aktivite normale dönene kadar bir hafta boyunca hergün kontrol yapılması\n3-Soruna bağlı olarak çevrenin yönetilmesi\n4-İstasyon yerleşiminde revizyona gidilmesi\n5-İşletmenin kemirgen açısından topyekün kontrolü\n6-Personelin uyarılması ve bilgilendirilmesi',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'İşletme üzerinde kuş yuvası',
+      detectionMethod: 'Haftalık dış saha gözlemleri ve aylık GMP denetimleri, personel geri bildirimleri',
+      criticalLimit: '1 adet kuş yuvası',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Yapılan tespit sonrası 24 saat içerisinde yuvanın kaldırılması\n2-Yuvanın tekrar yapılmaması için bir hafta boyunca takip edilmesi\n3-Bölgenin yuva yapılamaz hale getirilmesi\n4-Dış çevrede kuşlar için çekici olabilecek unsurların bertarafı',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Dış alanda uçkun zararlı yoğunluğu',
+      detectionMethod: 'Haftalık dış saha gözlemleri ve personel geri bildirimleri ve LFT sayımlarının dış alan gözlemleriyle örtüşmesi',
+      criticalLimit: 'Dış kapı yakınlarındaki LFT cihazlarındaki yapışkan plakaların ölçümlerinin maximum düzeye ulaşması ve/veya bir hafta içerisinde tüm yüzeyin kaplanması',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Yoğunluğa neden olan ağırlıklı sinek türünün tespiti\n2-Kaynağın bulunması\n3-Popülasyon küçük sineklerden oluşuyorsa kanal içlerinin kontrolleri ve temizliklerinin yapılması\n4-Toksik olmayan yöntemlerle mevcut yoğunluğun eliminasyonu\n5-Sorun yaşanan noktada her vardiyada takibin yapılması\n6-Bölgedeki LFT cihazlarının etkinliklerinin test edilmesi',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Dış alanda kedi veya köpek aktivitesi',
+      detectionMethod: 'Haftalık rutin gözlemlerve personel geri bildirimleri',
+      criticalLimit: '1 adet kedi veya köpek varlığı',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Kedi veya köpek kapanlarının uygun noktalara kurulması, yakalanıp uzaklaştırılana kadar takibin devam etmesi\n2-Fabrika alanına giriş yerlerinin tespit edilmesi ve yalıtımın yapılması\n3-Yakalanıp uzaklaştırılan hayvanın bölgesinde 3 gün süre ile takip yapılması\n4-Uzaklaştırılan canlının dışkılarının temizlenmesi',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'İç alanda kemirgen yakalanması',
+      detectionMethod: 'Canlı yakalama kapanları ve haftalık kontroller ve personel geri bildirimleri',
+      criticalLimit: 'canlı kapanlarda 1 adet yakalanma',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Türün tespitinin yapılması\n2-Kaynağın bulunması ve buna bağlı önlemlerin geliştirilmesi\n3-Peşpeşe 3 gün süre ile takip yapılması,yakalanma yok ise rutine dönülmesi\n4-Gerekli ise canlı kapan ve toksik olmayan yöntemlerin arttırlması\n5-Bölgede kirlenen yüzeylerin temizlik ve dezenfeksiyonun yapılması',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'İç alanda kemirgen aktivitesi ve/veya buna bağlı bulgular',
+      detectionMethod: 'Canlı yakalama kapanları ve haftalık kontroller ve GMP denetimleri ve personel geri bildirimleri',
+      criticalLimit: 'en az 1 adet gözlem',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Canlı kemirgen yakalanana veya uzaklaştırılana kadar takiplerin devam etmesi\n2-Kemirgen türünün tespiti\n3-Sorunun kaynağının bulunması(gerekirse tedarikçi denetimi yapılmalı)\n4-Bu bilgilerle süratle ek önlemlerin alınması\n5-Yakalanma ve izlerin temizlenmesinden sonra 3 gün peşpeşe takip yapılıp,uygunsa rutine dönülmesi',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'İç alanda kemirgen istilası',
+      detectionMethod: 'Personel bildirimleri, Canlı yakalama kapanlarıve haftalık kontroller',
+      criticalLimit: "Aynı alanda 1' den fazla gözlem, aynı alan canlı yakalamalarda 1' den fazla kapanda yakalanma, rutin dışı emareler",
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Tüm canlı yakalama kapanlarının kontrolü ve kontrolleri günlük periyotlara çekilmesi\n2-Tür tespitinin yapılması\n3-Kaynakların bölüm ve fabrika genelinde araştırılıp, berteraf edilmesi\n4-Kontaminasyonun araştırlması\n5-Ek önlemlerin alınması(ilave monitör,yapışkan plaka vb.)\n6-Dış alan kontrollerinin arttırılması.',
+      documentation: 'Teknik inceleme raporu-Faaliyet raporu-Risk analiz raporu'
+    },
+    {
+      risk: 'Üretim ve paketleme alanlarında sinek aktivitesi',
+      detectionMethod: 'Haftalık kontroller,LFT cihazları,GMP denetimleri ve personel geri bildirimleri',
+      criticalLimit: 'Bir ekipman çevrsinde dar bir alanda 5 adet sineğin varlığı',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Yoğunluğa neden olan ağırlıklı sinek türünün tespiti\n2-Kaynağın bulunması\n3-Popülasyon küçük sineklerden oluşuyorsa kanal içlerinin kontrolleri ve temizliklerinin yapılması\n4-Toksik olmayan yöntemlerle mevcut yoğunluğun eliminasyonu\n5-Sorun yaşanan noktada her vardiyada takibin yapılması\n6-Bölgedeki LFT cihazlarının etkinliklerinin test edilmesi',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Hassas noktalardaki LFT cihazlarında yakalanan sinek sayısındaki artış',
+      detectionMethod: 'Ayda en az 2 kez LFT cihazlarının bakım ve ayda bir kez sayımlarının yapılması',
+      criticalLimit: 'Haftalık sayımlarda cihaz başına yakalanm ortalamasının 150 den fazla olması',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Ağırlıklı sinek türünün tespitinin yapılması\n2-Yoğunluk nedeninin bulunması\n3-Bu bilgilere bağlı olarak ek önlemlerin alınması\n4-Gerekiyorsa LFT cihazlarında geçici artış yapılması\n5-Yalıtımla ilgili sorunlar varsa giderilmeli',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Üretim ve paketleme dışı alanlardaki LFT cihazlarında yakalanan sinek sayısındaki artış',
+      detectionMethod: 'Ayda en az 2 kez LFT cihazlarının bakım ve ayda bir kez sayımlarının yapılması',
+      criticalLimit: "Haftalık sayımlarda cihaz başına yakalanm ortalamasının 250' den fazla olması",
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Ağırlıklı sinek türünün tespitinin yapılması\n2-Yoğunluk nedeninin bulunması\n3-Bu bilgilere bağlı olarak ek önlemlerin alınması\n4-Gerekiyorsa LFT cihazlarında geçici artış yapılması\n5-Yalıtımla ilgili sorunlar varsa giderilmeli',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Depo zararlısı aktivitesi',
+      detectionMethod: 'Haftalık rutin kontroller,feromonlu tuzak kontrolleri,personel geri bildirimleri,hammadde alım gözlemleri',
+      criticalLimit: 'Herhangi bir depo zararlısının 1 adet yakalanması veya gözlenmesi',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Depo zararlısının tür tespiti\n2-Türe bağlı önlemlerin değerlendirilmesi\n3-Tedarikçi ile irtibata geçerek destek alınmalı\n4-Sorun yaygın ise red, karantina gibi radikal önlemler alınmalı\n5-Sorun görülen alanda ve üründe bir hafta bıyunca hergün kontrol yapılmalı\n6-Rutin kontrole dönüldükten 21 gün sonra tekrar kontrol yapılmalıdır.',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Bina içerisinde kuş aktivitesi',
+      detectionMethod: 'Haftalık kontroller ve personel geri bildirimleri',
+      criticalLimit: '1 adet kuş aktivitesi',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Kuş yakalanana veya dışarı çıkartılana kadar takiplerin devam etmesi\n2-Kuşun içeride yaptığı kirliliklerin giderilmesi\n3-Henüz tespit edilmeyen giriş noktalarının tespitinin yapılması, sabah erken saatlerde ve günün değişik zamanlarında tekrar kontrollerin yapılması\n4-Sorun yaşanan alanın dış çevresinde kuş kontrol önlemlerinin değerlendirilmesi.',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'İşletme içerisinde herhangi bir yerde hamam böceği aktivitesi veya yakalanması',
+      detectionMethod: 'Haftalık kontroller,böcek trapları,canlı kapanlar,GMP denetimleri,personel geri bildirimleri',
+      criticalLimit: '1 adet hamamböceği',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Tür tespitinin yapılması\n2-Kaynağın bulunması\n3-Peşpeşe 3 gün yeni bir yakalanma olup olmadığının izlenmesi, sonuç olumlu ise rutine geçilmesi\n4-Gerekiyorsa canlı kapan ve toksik olmayan yöntemlerin sayısının arttrılması\n5-Zorunlu ise üretim dışı bir zamanda uygulama yapılması\n6-Taşınma olasılığına karşı personel dolaplarında örnekleme ile gıda kontrolü yapılması',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
+    },
+    {
+      risk: 'Bulaşıcı hastalık etmeni zararlıların varlığı',
+      detectionMethod: 'Haftalık rutin gözlemler',
+      criticalLimit: '1 ADET',
+      responsible: 'SİSTEM İLAÇLAMA',
+      action: '1-Türün tespiti\n2-Fabrika yönetimi ile birlikte alınabilecek en geniş önlemin alınması\n3-Saptanan kontrol yöntemlerin öncelikle hayata geçirilmesi\n4-Konu ile ilgili işyeri hekiminin bilgilendirilmsi.',
+      documentation: 'Faaliyet raporu----Risk analiz raporu'
     }
-    // ... Diğer maddeler buraya eklenebilir
   ];
 
   // --- INIT & LOCAL STORAGE ---
@@ -123,9 +212,17 @@ const RiskActionPlanPage = () => {
       try {
         const parsed = JSON.parse(saved);
         setFormData(parsed.formData);
-        setRiskActions(parsed.riskActions);
+        if (parsed.riskActions.length > 0) {
+            setRiskActions(parsed.riskActions);
+        } else {
+            // İlk açılışta 1 tane örnek ile başla
+            addRiskAction(predefinedRiskActions[0]);
+        }
         if(parsed.signatures) setSignatures(parsed.signatures);
       } catch (e) { console.error("Kayıt yüklenemedi"); }
+    } else {
+        // Hiç kayıt yoksa ilk örneği ekle
+        addRiskAction(predefinedRiskActions[0]);
     }
   }, []);
 
@@ -200,6 +297,7 @@ const RiskActionPlanPage = () => {
     
     setRiskActions(prev => [...prev, newRiskAction]);
     setShowPredefinedActions(false);
+    setSearchTerm('');
   };
 
   const updateRiskAction = (id: string, field: keyof RiskAction, value: any) => {
@@ -245,7 +343,6 @@ const RiskActionPlanPage = () => {
     
     try {
       const element = reportRef.current;
-      // Geçici olarak scale class'ı kaldır veya ayarla gerekirse
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -304,6 +401,11 @@ const RiskActionPlanPage = () => {
     }
 };
 
+  const filteredPredefinedActions = predefinedRiskActions.filter(item => 
+    item.risk.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    item.detectionMethod.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 pb-20">
       
@@ -338,7 +440,7 @@ const RiskActionPlanPage = () => {
 
       {showSuccessMessage && (
         <div className="fixed top-24 right-6 z-50 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg shadow-lg flex items-center animate-in slide-in-from-right">
-            <CheckCircle className="h-5 w-5 mr-2" /> Raport İndirildi!
+            <CheckCircle className="h-5 w-5 mr-2" /> Rapor İndirildi!
         </div>
       )}
 
@@ -402,13 +504,28 @@ const RiskActionPlanPage = () => {
                     </button>
 
                     {showPredefinedActions && (
-                        <div className="absolute top-full right-0 mt-2 w-72 bg-white shadow-xl rounded-lg border z-20 max-h-80 overflow-y-auto">
-                            {predefinedRiskActions.map((action, i) => (
-                                <button key={i} onClick={() => addRiskAction(action)} className="w-full text-left p-3 hover:bg-blue-50 border-b last:border-0 group">
-                                    <div className="font-bold text-sm text-gray-800 group-hover:text-blue-700">{action.risk}</div>
-                                    <div className="text-xs text-gray-500 truncate">{action.action}</div>
-                                </button>
-                            ))}
+                        <div className="absolute top-full right-0 mt-2 w-80 bg-white shadow-xl rounded-lg border z-20 overflow-hidden flex flex-col max-h-96">
+                            <div className="p-2 border-b bg-gray-50 sticky top-0">
+                                <div className="relative">
+                                    <Search size={14} className="absolute left-2 top-2 text-gray-400"/>
+                                    <input 
+                                        autoFocus
+                                        placeholder="Risk ara..." 
+                                        className="w-full pl-7 pr-2 py-1 text-xs border rounded outline-none"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="overflow-y-auto">
+                                {filteredPredefinedActions.map((action, i) => (
+                                    <button key={i} onClick={() => addRiskAction(action)} className="w-full text-left p-3 hover:bg-blue-50 border-b last:border-0 group transition-colors">
+                                        <div className="font-bold text-xs text-gray-800 group-hover:text-blue-700 mb-1">{action.risk}</div>
+                                        <div className="text-[10px] text-gray-500 truncate">{action.detectionMethod}</div>
+                                    </button>
+                                ))}
+                                {filteredPredefinedActions.length === 0 && <div className="p-3 text-xs text-gray-500 text-center">Sonuç bulunamadı</div>}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -446,7 +563,7 @@ const RiskActionPlanPage = () => {
                                 value={action.risk} 
                                 onChange={(e) => updateRiskAction(action.id, 'risk', e.target.value)}
                                 placeholder="Risk Tanımı" 
-                                className="w-full font-bold text-gray-800 border-b border-gray-200 focus:border-blue-500 outline-none pb-1 bg-transparent" 
+                                className="w-full font-bold text-gray-800 border-b border-gray-200 focus:border-blue-500 outline-none pb-1 bg-transparent text-sm" 
                               />
                               
                               <div className="grid grid-cols-2 gap-2">
@@ -468,7 +585,7 @@ const RiskActionPlanPage = () => {
                                 value={action.action} 
                                 onChange={(e) => updateRiskAction(action.id, 'action', e.target.value)}
                                 placeholder="Aksiyon Planı (Her satır yeni madde)" 
-                                className="w-full text-sm border p-2 rounded bg-yellow-50/50 min-h-[80px]"
+                                className="w-full text-sm border p-2 rounded bg-yellow-50/50 min-h-[100px]"
                               />
 
                               <div className="flex items-center justify-between gap-3 pt-2 border-t border-dashed">
