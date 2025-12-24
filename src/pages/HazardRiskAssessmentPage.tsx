@@ -44,7 +44,7 @@ interface HazardItem {
   newSeverity: number;
   newRiskScore: number;
   newRiskLevel: string;
-  evidencePhoto: string | null; // Kanıt fotoğrafı
+  evidencePhoto: string | null;
 }
 
 interface ReportInfo {
@@ -151,7 +151,6 @@ const HazardRiskAssessmentPage = () => {
         if(parsed.signatures) setSignatures(parsed.signatures);
       } catch (e) { console.error("Kayıt yüklenemedi"); }
     } else {
-        // İlk açılışta boş ise 1 tane örnek ekle
         addHazard(PREDEFINED_HAZARDS[0]);
     }
   }, []);
@@ -165,7 +164,7 @@ const HazardRiskAssessmentPage = () => {
     return () => clearTimeout(timer);
   }, [reportInfo, hazards, signatures]);
 
-  // Click Outside Listener for Dropdown
+  // Click Outside Listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (predefinedListRef.current && !predefinedListRef.current.contains(event.target as Node)) {
@@ -178,19 +177,19 @@ const HazardRiskAssessmentPage = () => {
 
   // --- HESAPLAMA FONKSİYONLARI ---
   const calculateRiskLevel = (score: number): string => {
-    if (score >= 15) return 'Çok Yüksek'; // 15-25
-    if (score >= 10) return 'Yüksek';     // 10-12
-    if (score >= 5) return 'Orta';        // 5-9
-    if (score >= 3) return 'Düşük';       // 3-4
-    return 'Çok Düşük';                   // 1-2
+    if (score >= 15) return 'Çok Yüksek'; 
+    if (score >= 10) return 'Yüksek';     
+    if (score >= 5) return 'Orta';        
+    if (score >= 3) return 'Düşük';       
+    return 'Çok Düşük';                   
   };
 
-  const getRiskColor = (score: number) => {
-      if (score >= 15) return 'bg-red-600 text-white';
-      if (score >= 10) return 'bg-orange-500 text-white';
-      if (score >= 5) return 'bg-yellow-400 text-black';
-      if (score >= 3) return 'bg-green-500 text-white';
-      return 'bg-green-200 text-green-900';
+  const getRiskColor = (score: number, isBackground: boolean = true) => {
+      if (score >= 15) return isBackground ? 'bg-red-600 text-white' : 'text-red-600';
+      if (score >= 10) return isBackground ? 'bg-orange-500 text-white' : 'text-orange-500';
+      if (score >= 5) return isBackground ? 'bg-yellow-400 text-black' : 'text-yellow-600';
+      if (score >= 3) return isBackground ? 'bg-green-500 text-white' : 'text-green-600';
+      return isBackground ? 'bg-green-200 text-green-900' : 'text-green-500';
   };
 
   // --- CRUD İŞLEMLERİ ---
@@ -216,7 +215,6 @@ const HazardRiskAssessmentPage = () => {
       evidencePhoto: null
     };
     
-    // Eğer şablondan geliyorsa direkt listeye ekle, yoksa modal aç
     if (template) {
         setHazards(prev => [...prev, newHazard]);
         setShowPredefinedList(false);
@@ -231,7 +229,6 @@ const HazardRiskAssessmentPage = () => {
       
       let updated = { ...currentHazard, [name]: value };
 
-      // Risk hesaplaması
       if (['likelihood', 'severity', 'newLikelihood', 'newSeverity'].includes(name)) {
           const l = name === 'likelihood' ? parseInt(value) : updated.likelihood;
           const s = name === 'severity' ? parseInt(value) : updated.severity;
@@ -249,7 +246,6 @@ const HazardRiskAssessmentPage = () => {
 
   const saveCurrentHazard = () => {
       if (!currentHazard) return;
-      
       setHazards(prev => {
           const index = prev.findIndex(h => h.id === currentHazard.id);
           if (index > -1) {
@@ -273,7 +269,6 @@ const HazardRiskAssessmentPage = () => {
   const moveHazard = (index: number, direction: 'up' | 'down') => {
       if (direction === 'up' && index === 0) return;
       if (direction === 'down' && index === hazards.length - 1) return;
-      
       const newArr = [...hazards];
       const target = direction === 'up' ? index - 1 : index + 1;
       [newArr[index], newArr[target]] = [newArr[target], newArr[index]];
@@ -285,7 +280,6 @@ const HazardRiskAssessmentPage = () => {
       setHazards(prev => [...prev, copy]);
   };
 
-  // --- FOTOĞRAF YÜKLEME ---
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEvidence: boolean = false) => {
       const file = e.target.files?.[0];
       if (file) {
@@ -325,24 +319,14 @@ const HazardRiskAssessmentPage = () => {
     setLoading(true);
     
     try {
-      const element = reportRef.current;
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      
       const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape
       const pdfWidth = 297;
       const pdfHeight = 210;
-      
-      // Sayfa sayısını hesapla (her sayfa div'i 210mm yüksekliğinde)
-      // Preview modunda zaten sayfaları bölüyoruz, burada tek büyük canvas yerine sayfa sayfa alabiliriz
-      // Ancak basitlik için büyük canvas alıp bölüyoruz (Dikkat: Bu bazen kesilmelere yol açar)
-      // Daha güvenli yöntem: .report-page class'ına sahip her div'i ayrı ayrı render etmek.
       
       const pages = reportRef.current.querySelectorAll('.report-page');
       
       for (let i = 0; i < pages.length; i++) {
           if (i > 0) pdf.addPage();
-          
           const pageCanvas = await html2canvas(pages[i] as HTMLElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
           const pageImg = pageCanvas.toDataURL('image/jpeg', 0.95);
           pdf.addImage(pageImg, 'JPEG', 0, 0, pdfWidth, pdfHeight);
@@ -359,7 +343,6 @@ const HazardRiskAssessmentPage = () => {
     }
   };
 
-  // --- RENDER ---
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 pb-20 font-sans">
       
@@ -484,7 +467,7 @@ const HazardRiskAssessmentPage = () => {
                                           Risk: {hazard.riskScore}
                                       </div>
                                       <div className="text-[10px] text-gray-400">
-                                          Hedef: {getRiskColor(hazard.newRiskScore).includes('green') ? 'Düşük' : 'Orta'}
+                                          Hedef: {getRiskColor(hazard.newRiskScore, false).includes('green') ? 'Düşük' : 'Orta'}
                                       </div>
                                   </div>
                                   {hazard.evidencePhoto && <Camera size={14} className="text-blue-500"/>}
@@ -563,30 +546,76 @@ const HazardRiskAssessmentPage = () => {
                                 </div>
                             </div>
 
-                            {/* Risk Matrix Visualization */}
+                            {/* DÜZELTİLMİŞ RİSK MATRİSİ TABLOSU */}
                             <div className="flex gap-8 mb-4">
                                 <div className="flex-1">
                                     <h3 className="font-bold text-gray-700 text-sm mb-2 border-b pb-1">Risk Matrisi (L x S)</h3>
-                                    <div className="grid grid-cols-6 text-[10px] gap-0.5">
-                                        <div className="col-span-1 row-span-6 flex items-center justify-center font-bold -rotate-90 text-gray-500">OLASILIK</div>
-                                        {/* Header Row */}
-                                        <div className="bg-gray-100"></div>
-                                        {[1,2,3,4,5].map(i => <div key={i} className="text-center font-bold bg-gray-100 py-1">{i}</div>)}
+                                    <div className="flex items-center justify-center">
+                                        {/* Dikey Başlık */}
+                                        <div className="font-bold text-xs text-gray-600 rotate-180" style={{ writingMode: 'vertical-lr' }}>OLASILIK</div>
                                         
-                                        {[5,4,3,2,1].map(row => (
-                                            <React.Fragment key={row}>
-                                                <div className="font-bold bg-gray-100 flex items-center justify-center">{row}</div>
-                                                {[1,2,3,4,5].map(col => {
-                                                    const val = row * col;
-                                                    return (
-                                                        <div key={col} className={`flex items-center justify-center py-1 font-bold border border-white ${getRiskColor(val)}`}>
-                                                            {val}
-                                                        </div>
-                                                    )
-                                                })}
-                                            </React.Fragment>
-                                        ))}
-                                        <div className="col-span-6 text-center font-bold text-gray-500 mt-1">ŞİDDET (ETKİ)</div>
+                                        <table className="w-full text-center border-collapse text-xs ml-2">
+                                            <tbody>
+                                                {/* 5. Satır */}
+                                                <tr>
+                                                    <td className="font-bold border bg-gray-100 p-1">5</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">5</td>
+                                                    <td className="border p-2 bg-orange-500 text-white font-bold">10</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">15</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">20</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">25</td>
+                                                </tr>
+                                                {/* 4. Satır */}
+                                                <tr>
+                                                    <td className="font-bold border bg-gray-100 p-1">4</td>
+                                                    <td className="border p-2 bg-green-500 text-white font-bold">4</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">8</td>
+                                                    <td className="border p-2 bg-orange-500 text-white font-bold">12</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">16</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">20</td>
+                                                </tr>
+                                                {/* 3. Satır */}
+                                                <tr>
+                                                    <td className="font-bold border bg-gray-100 p-1">3</td>
+                                                    <td className="border p-2 bg-green-500 text-white font-bold">3</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">6</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">9</td>
+                                                    <td className="border p-2 bg-orange-500 text-white font-bold">12</td>
+                                                    <td className="border p-2 bg-red-600 text-white font-bold">15</td>
+                                                </tr>
+                                                {/* 2. Satır */}
+                                                <tr>
+                                                    <td className="font-bold border bg-gray-100 p-1">2</td>
+                                                    <td className="border p-2 bg-green-200 text-green-900 font-bold">2</td>
+                                                    <td className="border p-2 bg-green-500 text-white font-bold">4</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">6</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">8</td>
+                                                    <td className="border p-2 bg-orange-500 text-white font-bold">10</td>
+                                                </tr>
+                                                {/* 1. Satır */}
+                                                <tr>
+                                                    <td className="font-bold border bg-gray-100 p-1">1</td>
+                                                    <td className="border p-2 bg-green-200 text-green-900 font-bold">1</td>
+                                                    <td className="border p-2 bg-green-200 text-green-900 font-bold">2</td>
+                                                    <td className="border p-2 bg-green-500 text-white font-bold">3</td>
+                                                    <td className="border p-2 bg-green-500 text-white font-bold">4</td>
+                                                    <td className="border p-2 bg-yellow-400 text-black font-bold">5</td>
+                                                </tr>
+                                                {/* Alt Başlıklar */}
+                                                <tr>
+                                                    <td></td>
+                                                    <td className="font-bold border bg-gray-100 p-1">1</td>
+                                                    <td className="font-bold border bg-gray-100 p-1">2</td>
+                                                    <td className="font-bold border bg-gray-100 p-1">3</td>
+                                                    <td className="font-bold border bg-gray-100 p-1">4</td>
+                                                    <td className="font-bold border bg-gray-100 p-1">5</td>
+                                                </tr>
+                                                <tr>
+                                                    <td></td>
+                                                    <td colSpan={5} className="text-center font-bold text-gray-600 pt-1">ŞİDDET (ETKİ)</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                                 
@@ -632,8 +661,7 @@ const HazardRiskAssessmentPage = () => {
                             </div>
                         </div>
 
-                        {/* SAYFA 2+: TABLO (Sayfa başı 4-5 kayıt sığar) */}
-                        {/* Basitlik için tüm tabloyu tek sayfada gösterip taşanı jsPDF ile bölmeyeceğiz, CSS ile sayfa sonu vereceğiz */}
+                        {/* SAYFA 2+: TABLO */}
                         <div className="report-page bg-white shadow-lg mx-auto relative p-[15mm] min-h-[210mm]" style={{ width: '297mm' }}>
                              <h3 className="font-bold text-gray-800 text-lg mb-4 border-b pb-2">DETAYLI RİSK ANALİZ TABLOSU</h3>
                              <table className="w-full text-xs border-collapse">
