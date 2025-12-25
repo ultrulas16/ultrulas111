@@ -791,7 +791,7 @@ const PestRiskAnalysisPage = () => {
             {/* Pest Risk Analysis Table */}
             <div className="mb-6">
               <h3 className="font-bold mb-2 text-sm">
-                KISMET TATLI RİSK SKOR MATRİSİ: {new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+               RİSK SKOR MATRİSİ: {new Date(reportInfo.assessmentDate).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full border text-xs">
