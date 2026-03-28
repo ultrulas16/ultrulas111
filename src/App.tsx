@@ -1,6 +1,8 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { AuthProvider } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedModulePage from './components/ProtectedModulePage';
 import Header from './components/Header';
@@ -73,11 +75,44 @@ import JobApplicationsPage from './pages/admin/JobApplicationsPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import EmailCampaignsPage from './pages/admin/EmailCampaignsPage';
 import RecipientGroupsPage from './pages/admin/RecipientGroupsPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
+import LocationAnalysisPage from './pages/LocationAnalysisPage';
+
+function VisitorTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const trackVisit = async () => {
+      try {
+        let sessionId = sessionStorage.getItem('visitor_session_id');
+        if (!sessionId) {
+          sessionId = uuidv4();
+          sessionStorage.setItem('visitor_session_id', sessionId);
+        }
+
+        await supabase.from('site_visits').insert([
+          {
+            session_id: sessionId,
+            page_path: location.pathname
+          }
+        ]);
+      } catch (error) {
+        // Silent error for tracking
+        console.error('Visitor tracking error:', error);
+      }
+    };
+
+    trackVisit();
+  }, [location.pathname]);
+
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <VisitorTracker />
         <div className="min-h-screen bg-white">
           <Routes>
             {/* Admin Routes - No Header/Footer */}
@@ -167,6 +202,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <RecipientGroupsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/location-analysis" 
+              element={
+                <ProtectedRoute>
+                  <LocationAnalysisPage />
                 </ProtectedRoute>
               } 
             />
